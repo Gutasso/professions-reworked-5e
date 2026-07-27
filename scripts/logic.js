@@ -1,4 +1,4 @@
-import { TABELA_DIFICULDADE, VALOR_ACERTOS, COZINHEIRO_CONFIG } from './constants.js';
+import { TABELA_DIFICULDADE, VALOR_ACERTOS } from './constants.js';
 
 /**
  * Determina qual o nível de sucesso atingido e quantos acertos ele gera.
@@ -25,28 +25,5 @@ export function calcularResultado(total, dificuldade) {
     return {
         resultado: resultado,
         acertos: VALOR_ACERTOS[resultado] || 0
-    };
-}
-
-/**
- * Processa a rolagem do Cozinheiro.
- */
-export function processarCozinheiro(total, tipoPreparo) {
-    const config = COZINHEIRO_CONFIG[tipoPreparo];
-    
-    // Proteção caso o tipoPreparo venha errado do HTML
-    if (!config) {
-        console.error(`Profissões Dinâmicas | Tipo de preparo não encontrado: ${tipoPreparo}`);
-        return { efeitoFinal: "Erro", resultadoMatematico: "FALHA" };
-    }
-    
-    const base = calcularResultado(total, config.dificuldade);
-    const efeito = config.resultados[base.resultado];
-
-    return {
-        preparo: tipoPreparo,
-        dificuldadeUsada: config.dificuldade,
-        resultadoMatematico: base.resultado,
-        efeitoFinal: efeito
     };
 }

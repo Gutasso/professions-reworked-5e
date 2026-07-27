@@ -30,7 +30,7 @@ export const PROFISSOES_CONFIG = {
     "Cartógrafo":  { ferramenta: "cartographer",subTipos: ["Cópia de Mapa", "Desenho de Mapa"] },
     "Cozinheiro":  { ferramenta: "cook",       subTipos: ["Refeição de Baixa Qualidade", "Refeição de Alta Qualidade", "Banquete"] },
     "Coureiro":    { ferramenta: "leatherworker", subTipos: ["Item de Aventureiro","Armadura de Couro", "Arma de Couro", "Item de Couro", "Conserto", "Preparo para Encantamento"] },
-    "Engenheiro":  { ferramenta: "tinker",     subTipos: ["Mecanismo", "Mecanismo Improvisado", "Conserto", "Preparo para Encantamento"] },
+    "Engenheiro":  { ferramenta: "tinker",     subTipos: ["Mecanismo", "Mecanismo Improvisado", "Planos de Estruturas", "Conserto", "Preparo para Encantamento"] },
     "Escriba":     { ferramenta: "calligrapher", subTipos: ["Cópia de Texto", "Obra de Arte", "Escrita de Livro", "Pergaminho de Magia"] },
     "Ferreiro":    { ferramenta: "smith",      subTipos: ["Item de Aventureiro", "Armadura de Metal", "Arma de Metal", "Conserto", "Preparo para Encantamento" ] },
     "Herbalista":  { ferramenta: "herb",  subTipos: ["Temperos e Especiarias", "Tintura Mundana", "Erva de Poção", "Tintura Mágica"] },
@@ -362,3 +362,22 @@ export const XP_VENENO_COLETA = {
         "Veneno Básico": 1, "Veneno Avançado": 5, "Veneno de Dragão Verde": 10 
     }
 };
+
+export const RESULTADO_FORMAT = {
+    "GRANDE_SUCESSO": { label: "Grande Sucesso", color: "#006400", bg: "#edffed", border: "#006400" },
+    "ALTO_SUCESSO":   { label: "Alto Sucesso",   color: "#006400", bg: "#edffed", border: "#006400" },
+    "MEDIO_SUCESSO":  { label: "Médio Sucesso",  color: "#005a9c", bg: "#e6f2ff", border: "#005a9c" },
+    "SUCESSO":        { label: "Sucesso",        color: "#005a9c", bg: "#e6f2ff", border: "#005a9c" },
+    "BAIXO_SUCESSO":  { label: "Baixo Sucesso",  color: "#b8860b", bg: "#fff8e1", border: "#b8860b" },
+    "MEDIA":          { label: "Média",          color: "#b8860b", bg: "#fff8e1", border: "#b8860b" },
+    "BAIXA_FALHA":    { label: "Baixa Falha",    color: "#c0392b", bg: "#fadbd8", border: "#c0392b" },
+    "FALHA":          { label: "Falha",          color: "#c0392b", bg: "#fadbd8", border: "#c0392b" },
+    "MEDIA_FALHA":    { label: "Média Falha",    color: "#8b0000", bg: "#e6b0aa", border: "#8b0000" },
+    "ALTA_FALHA":     { label: "Alta Falha",     color: "#555555", bg: "#dcdcdc", border: "#555555" },
+    "GRANDE_FALHA":   { label: "Grande Falha",   color: "#000000", bg: "#cccccc", border: "#000000" }
+};
+
+export const ATRIBUTOS = {
+    "str": "Força", "dex": "Destreza", "con": "Constituição", 
+    "int": "Inteligência", "wis": "Sabedoria", "cha": "Carisma"
+};

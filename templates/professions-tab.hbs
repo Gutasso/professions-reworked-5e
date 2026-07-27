@@ -13,7 +13,8 @@
         <header class="prof-header">
             <div class="header-title">
                 <h3>
-                    <i class="fas {{#if this.isCollapsed}}fa-chevron-right{{else}}fa-chevron-down{{/if}} collapse-icon"></i>
+                    <i
+                        class="fas {{#if this.isCollapsed}}fa-chevron-right{{else}}fa-chevron-down{{/if}} collapse-icon"></i>
                     <i class="fas {{this.icon}} prof-icon-spacer"></i>
                     {{this.nome}}
                 </h3>
@@ -34,250 +35,284 @@
             </div>
 
             {{#if this.isCozinheiro}}
-                {{!-- 1. CONTROLES DE ROLAGEM DO COZINHEIRO --}}
-                <div class="roll-controls cook-controls">
-                    <select class="cook-attribute">
-                        {{selectOptions this.atributosLocais selected=this.cookParams.atributoPadrao}}
-                    </select>
+            {{!-- 1. CONTROLES DE ROLAGEM DO COZINHEIRO --}}
+            <div class="roll-controls cook-controls">
+                <select class="cook-attribute">
+                    {{selectOptions this.atributosLocais selected=this.cookParams.atributoPadrao}}
+                </select>
 
-                    <div class="advantage-wrapper">
-                        <span class="advantage-label-text">Vantagem:</span>
-                        <div class="toggle-advantage-cook" title="Vantagem Situacional">
-                            <input type="checkbox" id="cook-adv-{{this.nome}}" class="cook-adv-checkbox" {{#if this.cookParams.usoVantagem}}checked{{/if}}>
-                            <label for="cook-adv-{{this.nome}}" class="adv-label">
-                                <i class="far fa-circle unchecked-icon"></i>
-                                <i class="fas fa-circle checked-icon"></i>
-                            </label>
-                        </div>
+                <div class="advantage-wrapper">
+                    <span class="advantage-label-text">Vantagem:</span>
+                    <div class="toggle-advantage-cook" title="Vantagem Situacional">
+                        <input type="checkbox" id="cook-adv-{{this.nome}}" class="cook-adv-checkbox" {{#if
+                            this.cookParams.usoVantagem}}checked{{/if}}>
+                        <label for="cook-adv-{{this.nome}}" class="adv-label">
+                            <i class="far fa-circle unchecked-icon"></i>
+                            <i class="fas fa-circle checked-icon"></i>
+                        </label>
                     </div>
-
-                    <div class="disadvantage-wrapper">
-                        <span class="advantage-label-text">Desvantagem:</span>
-                        <div class="toggle-disadvantage" title="Desvantagem Situacional">
-                            <input type="checkbox" id="cook-disadv-{{this.nome}}" class="cook-disadv-checkbox" {{#if this.cookParams.usoDesvantagem}}checked{{/if}}>
-                            <label for="cook-disadv-{{this.nome}}" class="disadv-label">
-                                <i class="far fa-circle unchecked-icon"></i>
-                                <i class="fas fa-circle checked-icon"></i>
-                            </label>
-                        </div>
-                    </div>
-
-                    <input type="text" class="cook-bonus" placeholder="+0" value="{{this.cookParams.bonusSituacional}}" title="Bônus (ex: +2, +1d4)">
                 </div>
 
-                {{!-- 2. BOTÕES DE AÇÃO --}}
-                <div class="cooking-buttons">
-                    <button type="button" class="cook-test" data-type="BAIXA_QUALIDADE">Refeição Simples</button>
-                    <button type="button" class="cook-test" data-type="ALTA_QUALIDADE">Refeição Fina</button>
-                    <button type="button" class="cook-test" data-type="BANQUETE">Banquete</button>
+                <div class="disadvantage-wrapper">
+                    <span class="advantage-label-text">Desvantagem:</span>
+                    <div class="toggle-disadvantage" title="Desvantagem Situacional">
+                        <input type="checkbox" id="cook-disadv-{{this.nome}}" class="cook-disadv-checkbox" {{#if
+                            this.cookParams.usoDesvantagem}}checked{{/if}}>
+                        <label for="cook-disadv-{{this.nome}}" class="disadv-label">
+                            <i class="far fa-circle unchecked-icon"></i>
+                            <i class="fas fa-circle checked-icon"></i>
+                        </label>
+                    </div>
                 </div>
 
-                {{!-- 3. LOG DE REFEIÇÕES (CARDS) --}}
-                <div class="cooked-meals-list">
-                    {{#if this.refeicoes.length}}
-                        <h4><i class="fas fa-utensils"></i> Pratos Prontos</h4>
-                        {{#each this.refeicoes}}
-                        <div class="meal-card" data-index="{{@index}}">
-                            <div class="meal-info">
-                                <span class="meal-name"><strong>{{this.nome}}</strong></span>
-                                <span class="meal-result">{{{this.resultado}}}</span>
-                            </div>
-                            {{#if this.podeGanharXP}}
-                                <a class="add-xp-btn xp-meal-btn" title="Adicionar XP ao Treinamento"><i class="fas fa-arrow-up"></i> XP</a>
-                            {{/if}}
-                            <a class="delete-meal" title="Consumir/Descartar"><i class="fas fa-trash"></i></a>
-                        </div>
-                        {{/each}}
-                    {{else}}
-                        <p class="no-meals">Nenhuma refeição preparada.</p>
+                <input type="text" class="cook-bonus" placeholder="+0" value="{{this.cookParams.bonusSituacional}}"
+                    title="Bônus (ex: +2, +1d4)">
+            </div>
+
+            {{!-- 2. BOTÕES DE AÇÃO --}}
+            <div class="cooking-buttons">
+                <button type="button" class="cook-test" data-type="BAIXA_QUALIDADE">Baixa Qualidade</button>
+                <button type="button" class="cook-test" data-type="ALTA_QUALIDADE">Alta Qualidade</button>
+                <button type="button" class="cook-test" data-type="BANQUETE">Banquete</button>
+            </div>
+
+            {{!-- 3. LOG DE REFEIÇÕES (CARDS) --}}
+            <div class="cooked-meals-list">
+                {{#if this.refeicoes.length}}
+                <h4><i class="fas fa-utensils"></i> Pratos Prontos</h4>
+                {{#each this.refeicoes}}
+                <div class="meal-card" data-index="{{@index}}">
+                    <div class="meal-info">
+                        <span class="meal-name"><strong>{{this.nome}}</strong></span>
+                        <span class="meal-result">{{{this.resultado}}}</span>
+                    </div>
+                    {{#if this.podeGanharXP}}
+                    <a class="add-xp-btn xp-meal-btn" title="Adicionar XP ao Treinamento"><i
+                            class="fas fa-arrow-up"></i> XP</a>
                     {{/if}}
+                    {{#unless this.itemColetado}}
+                    <a class="get-reward-btn get-meal-reward-btn" title="Receber Item no Inventário"><i class="fas fa-box-open"></i> Receber</a>
+                    {{/unless}}
+                    <a class="delete-meal" title="Consumir/Descartar"><i class="fas fa-trash"></i></a>
                 </div>
+                {{/each}}
+                {{else}}
+                <p class="no-meals">Nenhuma refeição preparada.</p>
+                {{/if}}
+            </div>
 
             {{else}}
-                {{!-- Layout Padrão de Projetos --}}
-                <div class="project-creation-form">
-                    <input type="text" class="new-project-name" placeholder="Nome do item...">
-                    <select class="new-project-subtype">
-                        {{#each this.subTipos}}<option value="{{this}}">{{this}}</option>{{/each}}
-                    </select>
-                    
-                    {{!-- Dropdown de Raridade (Encantamento / Herbalista / Escriba) --}}
-                    <select class="new-project-rarity" style="display:none;">
-                        <option value="" disabled selected>Raridade</option>
-                        <option value="Comum">Comum</option>
-                        <option value="Incomum">Incomum</option>
-                        <option value="Raro">Raro</option>
-                        <option value="Muito Raro">Muito Raro</option>
-                        <option value="Lendário">Lendário</option>
-                    </select>
+            {{!-- Layout Padrão de Projetos --}}
+            <div class="project-creation-form">
+                <input type="text" class="new-project-name" placeholder="Nome do item...">
+                <select class="new-project-subtype">
+                    {{#each this.subTipos}}<option value="{{this}}">{{this}}</option>{{/each}}
+                </select>
 
-                    {{!-- NOVO: Dropdowns Específicos do Sicário --}}
-                    <select class="new-project-dragon-age" style="display:none;">
-                        <option value="" disabled selected>Idade do Dragão</option>
-                        <option value="Filhote">Filhote</option>
-                        <option value="Jovem">Jovem</option>
-                        <option value="Adulto">Adulto</option>
-                        <option value="Ancião">Ancião</option>
-                    </select>
+                {{!-- Dropdown de Raridade (Encantamento / Herbalista / Escriba) --}}
+                <select class="new-project-rarity" style="display:none;">
+                    <option value="" disabled selected>Raridade</option>
+                    <option value="Comum">Comum</option>
+                    <option value="Incomum">Incomum</option>
+                    <option value="Raro">Raro</option>
+                    <option value="Muito Raro">Muito Raro</option>
+                    <option value="Lendário">Lendário</option>
+                </select>
 
-                    <select class="new-project-poison-type" style="display:none;">
-                        <option value="" disabled selected>Tipo de Veneno</option>
-                        <option value="Veneno Básico">Veneno Básico</option>
-                        <option value="Veneno Avançado">Veneno Avançado</option>
-                        <option value="Veneno de Dragão Verde">Veneno de Dragão Verde</option>
-                    </select>
+                {{!-- NOVO: Dropdowns Específicos do Sicário --}}
+                <select class="new-project-dragon-age" style="display:none;">
+                    <option value="" disabled selected>Idade do Dragão</option>
+                    <option value="Filhote">Filhote</option>
+                    <option value="Jovem">Jovem</option>
+                    <option value="Adulto">Adulto</option>
+                    <option value="Ancião">Ancião</option>
+                </select>
 
-                    <select class="new-project-herb-type" style="display:none;">
-                        <option value="" disabled selected>Tipo de Erva</option>
-                        <option value="Veneno Básico">Veneno Básico (Simples)</option>
-                        <option value="Veneno Avançado">Veneno Avançado (Moderado)</option>
-                    </select>
+                <select class="new-project-poison-type" style="display:none;">
+                    <option value="" disabled selected>Tipo de Veneno</option>
+                    <option value="Veneno Básico">Veneno Básico</option>
+                    <option value="Veneno Avançado">Veneno Avançado</option>
+                    <option value="Veneno de Dragão Verde">Veneno de Dragão Verde</option>
+                </select>
 
-                    {{!-- Dropdowns Específicos do Joalheiro --}}
-                    <select class="new-project-gem-rarity" style="display:none;">
-                        <option value="" disabled selected>Raridade da Gema</option>
-                        <option value="Comum">Comum</option>
-                        <option value="Rara">Rara</option>
-                        <option value="Épica">Épica</option>
-                        <option value="Lendária">Lendária</option>
-                    </select>
+                <select class="new-project-herb-type" style="display:none;">
+                    <option value="" disabled selected>Tipo de Erva</option>
+                    <option value="Veneno Básico">Veneno Básico (Simples)</option>
+                    <option value="Veneno Avançado">Veneno Avançado (Moderado)</option>
+                </select>
 
-                    <input type="number" class="new-project-value" placeholder="Valor (PC)" style="display:none;" title="Valor em Peças de Cobre" min="1" step="1">
+                {{!-- Dropdowns Específicos do Joalheiro --}}
+                <select class="new-project-gem-rarity" style="display:none;">
+                    <option value="" disabled selected>Raridade da Gema</option>
+                    <option value="Comum">Comum</option>
+                    <option value="Rara">Rara</option>
+                    <option value="Épica">Épica</option>
+                    <option value="Lendária">Lendária</option>
+                </select>
 
-                    {{!-- Dropdown de Bioma (Herbalista) --}}
-                    <select class="new-project-biome" style="display:none;">
-                        <option value="" disabled selected>Selecione o Bioma</option>
-                    </select>
+                <input type="number" class="new-project-value" placeholder="Valor (PC)" style="display:none;"
+                    title="Valor em Peças de Cobre" min="1" step="1">
 
-                    {{!-- Toggle de Placa (Ferreiro) --}}
-                    <div class="plate-toggle-container" style="display:none;">
-                        <input type="checkbox" id="plate-check-{{this.nome}}" class="plate-check">
-                        <label for="plate-check-{{this.nome}}" title="É Armadura de Placa?">É Placa?</label>
-                    </div>
+                {{!-- Dropdown de Bioma (Herbalista) --}}
+                <select class="new-project-biome" style="display:none;">
+                    <option value="" disabled selected>Selecione o Bioma</option>
+                </select>
 
-                    <select class="new-project-complexity">
-                        <option value="Simples">Simples</option>
-                        <option value="Moderadamente Complexo">Moderado</option>
-                        <option value="Complexo">Complexo</option>
-                        <option value="Muito Complexo">Muito Complexo</option>
-                    </select>
-                    <button type="button" class="create-project-btn">Iniciar</button>
+                {{!-- Toggle de Placa (Ferreiro) --}}
+                <div class="plate-toggle-container" style="display:none;">
+                    <input type="checkbox" id="plate-check-{{this.nome}}" class="plate-check">
+                    <label for="plate-check-{{this.nome}}" title="É Armadura de Placa?">É Placa?</label>
                 </div>
 
-                <div class="projects-list">
-                    {{#each this.projetos}}
-                    <div class="project-card {{#if this.isQuebrada}}broken-project{{/if}}" data-index="{{this._index}}">
-                        <div class="project-header-info">
-                            <div class="project-left">
-                                <span class="project-name">
-                                    <strong>{{this.nome}}</strong> ({{this.subTipo}}){{this.infoExtra}}
-                                </span>
-                                {{!-- Exibe Valor se for Gema --}}
-                                {{#if this.exibirValor}}
-                                    <span class="project-value {{#if this.isQuebrada}}value-broken{{/if}}" title="Valor Atual em Cobre">
-                                        <i class="fas fa-coins"></i> {{this.valorAtual}} PC
-                                    </span>
-                                {{/if}}
-                                <a class="edit-project-name" title="Editar Nome"><i class="fas fa-pencil-alt"></i></a>
-                            </div>
-                            <div class="card-actions">
-                        {{!-- NOVO: Botão de Adicionar XP (Se elegível) --}}
-                        {{#if this.podeGanharXP}}
-                            <a class="add-xp-btn" title="Adicionar XP ao Treinamento"><i class="fas fa-arrow-up"></i> XP</a>
-                        {{/if}}
+                <select class="new-project-complexity">
+                    <option value="Simples">Simples</option>
+                    <option value="Moderadamente Complexo">Moderado</option>
+                    <option value="Complexo">Complexo</option>
+                    <option value="Muito Complexo">Muito Complexo</option>
+                </select>
+                <button type="button" class="create-project-btn">Iniciar</button>
+            </div>
+
+            <div class="projects-list">
+                {{#each this.projetos}}
+                <div class="project-card {{#if this.isQuebrada}}broken-project{{/if}}" data-index="{{this._index}}">
+                    <div class="project-header-info">
+                        <div class="project-left">
+                            <span class="project-name">
+                                <strong>{{this.nome}}</strong> ({{this.subTipo}}){{this.infoExtra}}
+                            </span>
+                            {{!-- Exibe Valor se for Gema --}}
+                            {{#if this.exibirValor}}
+                            <span class="project-value {{#if this.isQuebrada}}value-broken{{/if}}"
+                                title="Valor Atual em Cobre">
+                                <i class="fas fa-coins"></i> {{this.valorAtual}} PC
+                            </span>
+                            {{/if}}
+                            <a class="edit-project-name" title="Editar Nome"><i class="fas fa-pencil-alt"></i></a>
+                        </div>
+                        <div class="card-actions">
+                            {{!-- NOVO: Botão de Adicionar XP (Se elegível) --}}
+                            {{#if this.podeGanharXP}}
+                            <a class="add-xp-btn" title="Adicionar XP ao Treinamento"><i class="fas fa-arrow-up"></i>
+                                XP</a>
+                            {{/if}}
+                            {{!-- NOVO: Botão de Receber Item --}}
+                            {{#if this.podeReceberItem}}
+                            <a class="get-reward-btn" title="Receber Item no Inventário"><i class="fas fa-box-open"></i>
+                                Receber</a>
+                            {{/if}}
                             <a class="delete-project" title="Excluir Projeto"><i class="fas fa-trash"></i></a>
                         </div>
                     </div>
 
-                        {{!-- Dropdown de Bioma DO CARD (Cartógrafo Rascunho) --}}
-                        {{#if (or this.isRascunho this.isHerbalista)}}
-                        <div class="card-biome-wrapper">
-                            <select class="card-biome-select">
-                                <option value="" disabled {{#unless this.bioma}}selected{{/unless}}>Selecione o Bioma</option>
-                                {{#each this.listaBiomas}}
-                                <option value="{{this}}" {{#if (eq this ../bioma)}}selected{{/if}}>{{this}}</option>
-                                {{/each}}
-                            </select>
-                        </div>
-                        {{/if}}
+                    {{!-- Dropdown de Bioma DO CARD (Cartógrafo Rascunho) --}}
+                    {{#if (or this.isRascunho this.isHerbalista)}}
+                    <div class="card-biome-wrapper">
+                        <select class="card-biome-select">
+                            <option value="" disabled {{#unless this.bioma}}selected{{/unless}}>Selecione o Bioma
+                            </option>
+                            {{#each this.listaBiomas}}
+                            <option value="{{this}}" {{#if (eq this ../bioma)}}selected{{/if}}>{{this}}</option>
+                            {{/each}}
+                        </select>
+                    </div>
+                    {{/if}}
 
-                        {{!-- LÓGICA DE EXIBIÇÃO: COLETA vs PROJETO NORMAL --}}
-                        {{#if this.isColeta}}
-                            {{!-- Card de Coleta (Sem barra, exibe resultado) --}}
-                            <div class="progress-container" style="background: transparent; border: none; height: auto; padding: 5px 0;">
-                                <div class="coleta-result" style="text-align: center; font-weight: bold; color: #4b0082;">
-                                    {{#if this.resultadoColeta}}
-                                        Resultado: {{this.resultadoColeta}}
-                                    {{else}}
-                                        (Aguardando Teste...)
-                                    {{/if}}
-                                </div>
-                            </div>
-                        {{else}}
-                        
-                        <div class="progress-container">
-                            {{!-- Barra Verde se Concluído, Cinza se Quebrado, Roxa normal --}}
-                            <div class="progress-fill {{#if this.isQuebrada}}fill-broken{{else if this.isConcluido}}fill-completed{{/if}}" style="width:{{this.porcentagem}}%"></div>
-                            <div class="progress-text">
-                                {{#if this.isQuebrada}}
-                                    QUEBRADA
-                                {{else if this.isConcluido}}
-                                    CONCLUÍDO!
-                                {{else}}
-                                    {{this.acertosAtuais}} / {{this.totalNecessario}}
-                                {{/if}}
-                            </div>
-                        </div>
-                        {{/if}}
-                        {{!-- AQUI ESTAVA O PROBLEMA: Reorganizado para uma linha só --}}
-                        <div class="roll-controls">
-                            <select class="roll-attribute" {{#if this.isQuebrada}}disabled{{/if}} {{#if this.isConcluido}}disabled{{/if}}>
-                                {{selectOptions this.atributosLocais selected=this.atributoPadrao}}
-                            </select>
-
-                            <div class="advantage-wrapper">
-                                <span class="advantage-label-text">Vantagem:</span>
-                                <div class="toggle-advantage" title="Vantagem Situacional">
-                                    <input type="checkbox" id="adv-{{this._index}}" class="adv-checkbox" {{#if this.usoVantagem}}checked{{/if}} {{#if this.isQuebrada}}disabled{{/if}} {{#if this.isConcluido}}disabled{{/if}}>
-                                    <label for="adv-{{this._index}}" class="adv-label">
-                                        <i class="far fa-circle unchecked-icon"></i>
-                                        <i class="fas fa-circle checked-icon"></i>
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div class="disadvantage-wrapper">
-                                <span class="advantage-label-text">Desvantagem:</span>
-                                <div class="toggle-disadvantage" title="Desvantagem Situacional">
-                                    <input type="checkbox" id="disadv-{{this._index}}" class="disadv-checkbox" {{#if this.usoDesvantagem}}checked{{/if}} {{#if this.isQuebrada}}disabled{{/if}} {{#if this.isConcluido}}disabled{{/if}}>
-                                    <label for="disadv-{{this._index}}" class="disadv-label">
-                                        <i class="far fa-circle unchecked-icon"></i>
-                                        <i class="fas fa-circle checked-icon"></i>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <input type="text" class="roll-bonus" placeholder="+0" value="{{this.bonusSituacional}}" title="Bônus" {{#if this.isQuebrada}}disabled{{/if}} {{#if this.isConcluido}}disabled{{/if}}>
-                            
-                            {{!-- NOVO: Botão Finalizar Rascunho (Cartógrafo) --}}
-                            {{#if this.isRascunho}}
-                                <a class="finish-draft-btn" title="Finalizar Rascunho e Iniciar Desenho Definitivo">Finalizar Rascunho</a>
+                    {{!-- LÓGICA DE EXIBIÇÃO: COLETA vs PROJETO NORMAL --}}
+                    {{#if this.isColeta}}
+                    {{!-- Card de Coleta (Sem barra, exibe resultado) --}}
+                    <div class="progress-container"
+                        style="background: transparent; border: none; height: auto; padding: 5px 0;">
+                        <div class="coleta-result" style="text-align: center; font-weight: bold; color: #4b0082;">
+                            {{#if this.resultadoColeta}}
+                            Resultado: {{this.resultadoColeta}}
+                            {{else}}
+                            (Aguardando Teste...)
                             {{/if}}
-
-                            <button type="button" class="roll-profession-test" 
-                                {{#if this.isQuebrada}}disabled style="opacity:0.6; cursor:not-allowed;"{{/if}}
-                                {{#if this.isConcluido}}disabled style="opacity:0.6; cursor:not-allowed;"{{/if}}>
-                                
-                                {{#if this.isConcluido}}
-                                    <i class="fas fa-check"></i> Pronto
-                                {{else}}
-                                    <i class="fas fa-dice-d20"></i> Trabalhar
-                                {{/if}}
-                            </button>
                         </div>
                     </div>
-                    {{/each}}
+                    {{else}}
+
+                    <div class="progress-container">
+                        {{!-- Barra Verde se Concluído, Cinza se Quebrado, Roxa normal --}}
+                        <div class="progress-fill {{#if this.isQuebrada}}fill-broken{{else if this.isConcluido}}fill-completed{{/if}}"
+                            style="width:{{this.porcentagem}}%"></div>
+                        <div class="progress-text">
+                            {{#if this.isQuebrada}}
+                            QUEBRADA
+                            {{else if this.isConcluido}}
+                            CONCLUÍDO!
+                            {{else}}
+                            {{this.acertosAtuais}} / {{this.totalNecessario}}
+                            {{/if}}
+                        </div>
+                    </div>
+                    {{/if}}
+                    {{!-- AQUI ESTAVA O PROBLEMA: Reorganizado para uma linha só --}}
+                    <div class="roll-controls">
+                        <select class="roll-attribute" {{#if this.isQuebrada}}disabled{{/if}} {{#if
+                            this.isConcluido}}disabled{{/if}}>
+                            {{selectOptions this.atributosLocais selected=this.atributoPadrao}}
+                        </select>
+
+                        <div class="advantage-wrapper">
+                            <span class="advantage-label-text">Vantagem:</span>
+                            <div class="toggle-advantage" title="Vantagem Situacional">
+                                <input type="checkbox" id="adv-{{this._index}}" class="adv-checkbox" {{#if
+                                    this.usoVantagem}}checked{{/if}} {{#if this.isQuebrada}}disabled{{/if}} {{#if
+                                    this.isConcluido}}disabled{{/if}}>
+                                <label for="adv-{{this._index}}" class="adv-label">
+                                    <i class="far fa-circle unchecked-icon"></i>
+                                    <i class="fas fa-circle checked-icon"></i>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="disadvantage-wrapper">
+                            <span class="advantage-label-text">Desvantagem:</span>
+                            <div class="toggle-disadvantage" title="Desvantagem Situacional">
+                                <input type="checkbox" id="disadv-{{this._index}}" class="disadv-checkbox" {{#if
+                                    this.usoDesvantagem}}checked{{/if}} {{#if this.isQuebrada}}disabled{{/if}} {{#if
+                                    this.isConcluido}}disabled{{/if}}>
+                                <label for="disadv-{{this._index}}" class="disadv-label">
+                                    <i class="far fa-circle unchecked-icon"></i>
+                                    <i class="fas fa-circle checked-icon"></i>
+                                </label>
+                            </div>
+                        </div>
+
+                        <input type="text" class="roll-bonus" placeholder="+0" value="{{this.bonusSituacional}}"
+                            title="Bônus" {{#if this.isQuebrada}}disabled{{/if}} {{#if
+                            this.isConcluido}}disabled{{/if}}>
+
+                        {{!-- NOVO: Botões do Cartógrafo --}}
+                        {{#if this.isRascunho}}
+                        <a class="finish-draft-btn" title="Finalizar Rascunho e Iniciar Desenho Definitivo">Finalizar
+                            Rascunho</a>
+                        {{/if}}
+                        {{#if this.isDesenhoDefinitivo}}
+                        {{#unless this.isConcluido}}
+                        <a class="resume-draft-btn" title="Retomar Rascunho">Retomar Rascunho</a>
+                        {{#if this.podeConcluir}}
+                        <a class="conclude-map-btn" title="Concluir Mapa">Concluir Mapa</a>
+                        {{/if}}
+                        {{/unless}}
+                        {{/if}}
+
+                        <button type="button" class="roll-profession-test" {{#if this.isQuebrada}}disabled
+                            style="opacity:0.6; cursor:not-allowed;" {{/if}} {{#if this.isConcluido}}disabled
+                            style="opacity:0.6; cursor:not-allowed;" {{/if}}>
+
+                            {{#if this.isConcluido}}
+                            <i class="fas fa-check"></i> Pronto
+                            {{else}}
+                            <i class="fas fa-dice-d20"></i> Trabalhar
+                            {{/if}}
+                        </button>
+                    </div>
                 </div>
+                {{/each}}
+            </div>
             {{/if}}
         </div>
     </div>

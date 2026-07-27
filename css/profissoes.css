@@ -192,7 +192,7 @@
 }
 
 /* Header do Card */
-.project-header-info, .card-header {
+.project-card .project-header-info, .project-card .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -542,8 +542,8 @@
     background-color: rgba(255,255,255,0.5);
 }
 
-/* Botão de Texto: Finalizar Rascunho */
-.finish-draft-btn {
+/* Botão de Texto: Finalizar Rascunho, Retomar Rascunho, Concluir Mapa */
+.finish-draft-btn, .resume-draft-btn, .conclude-map-btn {
     font-size: 11px;
     color: #800080; /* Roxo */
     font-weight: bold;
@@ -553,7 +553,7 @@
     text-decoration: none;
     transition: all 0.2s;
 }
-.finish-draft-btn:hover {
+.finish-draft-btn:hover, .resume-draft-btn:hover, .conclude-map-btn:hover {
     text-decoration: underline;
     text-shadow: 0 0 2px rgba(128, 0, 128, 0.3);
     transform: scale(1.05);
@@ -630,4 +630,29 @@
 /* Usaremos uma classe auxiliar no HTML para identificar esses cards */
 .project-card.training-type-Profissão .roll-controls {
     display: none !important;
+}
+
+/* Botão de Adicionar Recompensa (Inventário) */
+.get-reward-btn {
+    background: #2e8b57 !important; /* Verde Esmeralda */
+    color: #fff !important;
+    border: 1px solid #1f6e43;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.get-reward-btn:hover {
+    background: #3cb371 !important;
+    transform: scale(1.05);
+    color: #fff !important;
 }
