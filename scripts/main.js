@@ -62,27 +62,16 @@ Hooks.once("init", () => {
     console.log("Profissões Dinâmicas | Inicializando sistema...");
 });
 
-Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
-    const actor = app.actor;
+const CHARACTER_SHEET_HOOKS = [
+    "renderActorSheet5eCharacter",
+    "renderActorSheet5eCharacter2",
+    "renderTidy5eCharacterSheet",
+    "renderTidy5eSheet",
+    "renderActorSheet"
+];
 
-    const salvarScroll = () => {
-        tabParaManter = app._tabs[0].active;
-        app._scrollInfo = null; 
-        const sheetBody = app.element.find('.sheet-body');
-        if (sheetBody.length && sheetBody.scrollTop() > 0) {
-            app._scrollInfo = { selector: '.sheet-body', pos: sheetBody.scrollTop() };
-            return;
-        }
-        const candidatos = app.element.find('.professions-tab, .window-content, form, .tab.active');
-        candidatos.each((i, el) => {
-            if (el.scrollTop > 0) {
-                let selector = el.tagName.toLowerCase();
-                if (el.className) selector += `.${el.className.split(' ').join('.')}`;
-                app._scrollInfo = { selector: selector, pos: el.scrollTop };
-                return false;
-            }
-        });
-    };
+async function prepareProfessionsRenderData(actor) {
+    if (!actor) return { profissoesAtivas: [], todasProfissoes: Object.keys(PROFISSOES_CONFIG) };
 
     // 1. CARREGAR DADOS BÁSICOS
     let cookParams = actor.getFlag("professions-reworked-5e", "cookParams") || {};
@@ -98,7 +87,6 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
 
     const listaAtributos = Object.entries(ATRIBUTOS).map(([k, v]) => ({ value: k, label: v }));
 
-    // 2. PREPARAR DADOS DE PROFISSÕES PARA RENDER
     const profissoesRender = profissoesAtivas.map(pName => {
         const config = PROFISSOES_CONFIG[pName];
         const baseTool = config ? config.ferramenta : "";
@@ -112,7 +100,6 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
             t.acertosAtuais < t.totalNecessario
         );
 
-        // Processar Refeições (Apenas Cozinheiro)
         const refeicoesProcessadas = (pName === "Cozinheiro") ? refeicoesProntas.map((ref, idx) => {
             const isCronologiaValida = treinoAtivo && ref.timestamp && (ref.timestamp > (treinoAtivo.timestamp || 0));
             return {
@@ -122,7 +109,6 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
             };
         }) : [];
 
-        // Filtro e Mapeamento de Projetos
         const projetosFiltrados = listaProjetos
             .map((proj, index) => ({ ...proj, _index: index }))
             .filter(proj => proj.profissao === pName)
@@ -140,7 +126,6 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
                 let listaBiomasDinamica = [];
 
                 let extraOverrides = {};
-                // Delegar propriedades específicas da profissão
                 const profModule = professions[pName];
                 if (profModule && typeof profModule.prepareProject === "function") {
                     const overrides = profModule.prepareProject(proj, comp, { actor });
@@ -163,7 +148,6 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
                     isConcluido = true;
                 }
 
-                // Lógica de Ganho de XP
                 let podeGanharXP = false;
                 const momentoConclusao = proj.dataConclusao || 0;
                 const momentoInicioTreino = treinoAtivo ? (treinoAtivo.timestamp || 0) : 0;
@@ -179,7 +163,6 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
                     }
                 }
 
-                // Lógica de Recompensa de Item
                 let podeReceberItem = isConcluido && !isRascunho && !proj.itemColetado && proj.subTipo !== "Conserto";
 
                 return {
@@ -218,133 +201,110 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
         };
     });
 
-    // 3. PREPARAR DADOS DE TREINAMENTO
-    const trainingData = prepareTrainingData(actor);
-
-    // 4. RENDERIZAR E EXIBIR ABAS
-    const templatePath = "modules/professions-reworked-5e/templates/professions-tab.hbs";
-    const myTabHtml = await renderTemplate(templatePath, { 
+    return {
         profissoesAtivas: profissoesRender,
         todasProfissoes: Object.keys(PROFISSOES_CONFIG)
-    });
+    };
+}
 
-    const trainingTemplatePath = "modules/professions-reworked-5e/templates/training-tab.hbs";
-    const trainingHtml = await renderTemplate(trainingTemplatePath, {
-        ...trainingData,
-        opcoesTreino: Object.keys(TREINAMENTO_CONFIG),
-    });
-
-    const tabs = html.find('.sheet-navigation.tabs');
-    if (tabs.find('[data-tab="professions"]').length === 0) {
-        tabs.append($('<a class="item" data-tab="professions">Profissões</a>'));
-    }
-    if (tabs.find('[data-tab="training"]').length === 0) {
-        tabs.append($('<a class="item" data-tab="training">Treinamento</a>'));
-    }
-    
-    html.find('.professions-tab').remove();
-    html.find('.training-tab').remove();
-    
-    const sheetBody = html.find('.sheet-body'); 
-    sheetBody.append($(myTabHtml));
-    sheetBody.append($(trainingHtml));
-
-    // Executar atualizações iniciais nos dropdowns de criação de projetos
-    html.find('.profession-section').each((i, el) => {
-        const prof = $(el).data('prof');
-        const form = $(el).find('.project-creation-form');
-        const profModule = professions[prof];
-        if (profModule && typeof profModule.atualizarDropdown === "function") {
-            profModule.atualizarDropdown(form);
+function salvarScroll(actor, $container) {
+    if (!actor || !$container || !$container.length) return;
+    let pos = 0;
+    const candidatos = $container.find('.professions-tab, .training-tab, .tidy-sheet-body, .sheet-body, .scroll-container, section.tab-body, form, .window-content');
+    candidatos.each((i, el) => {
+        if (el.scrollTop > 0) {
+            pos = el.scrollTop;
+            return false;
         }
     });
-
-    // Restaurar Aba Ativa e Scroll
-    if (tabParaManter) {
-        if (tabParaManter === "professions" || tabParaManter === "training") {
-            app._tabs[0].activate(tabParaManter);
-            if (app._scrollInfo && app._scrollInfo.pos > 0) {
-                let target = app.element.find(app._scrollInfo.selector);
-                if (!target.length) target = app.element.find('.sheet-body');
-                if (target.length) {
-                    target.scrollTop(app._scrollInfo.pos);
-                    requestAnimationFrame(() => target.scrollTop(app._scrollInfo.pos));
-                }
-            }
-        }
-        tabParaManter = null;
-    } else {
-        const activeTab = app._tabs[0].active;
-        if (activeTab === "professions" || activeTab === "training") {
-            app._tabs[0].activate(activeTab);
-        }
+    if (pos > 0) {
+        actor._professionsScrollPos = pos;
     }
+}
 
-    // 5. REGISTRAR LISTENERS DE EVENTOS
+function restaurarScroll(actor, $container) {
+    if (!actor || typeof actor._professionsScrollPos !== "number" || actor._professionsScrollPos <= 0) return;
+    const pos = actor._professionsScrollPos;
+    const aplicar = () => {
+        const alvos = $container.find('.professions-tab, .training-tab, .tidy-sheet-body, .sheet-body, .scroll-container, section.tab-body, form, .window-content');
+        alvos.each((i, el) => {
+            el.scrollTop = pos;
+        });
+    };
+    aplicar();
+    requestAnimationFrame(aplicar);
+    setTimeout(aplicar, 40);
+}
+
+function attachProfessionsTabListeners(app, $html, data, salvarScrollFn = null) {
+    const actor = app?.actor || data?.actor;
+    if (!actor) return;
+
+    const salvarScrollBound = () => {
+        salvarScroll(actor, $html);
+        if (typeof salvarScrollFn === "function") salvarScrollFn();
+    };
+
+    let profissoesAtivas = actor.getFlag("professions-reworked-5e", "profissoesAtivas") || [];
+    let listaProjetos = actor.getFlag("professions-reworked-5e", "projetos") || [];
+    let colapsos = actor.getFlag("professions-reworked-5e", "colapsos") || {};
+    let ferramentasEquipadas = actor.getFlag("professions-reworked-5e", "ferramentasEquipadas") || {};
+    let listaTreinamentos = actor.getFlag("professions-reworked-5e", "listaTreinamentos") || [];
 
     // Mudança de Bioma no Card
-    html.find('.card-biome-select').change(async (ev) => {
-        salvarScroll();
+    $html.find('.card-biome-select').off('change.professions').on('change.professions', async (ev) => {
+        salvarScrollBound();
         const card = ev.currentTarget.closest('.project-card');
         const index = card.dataset.index;
         const novoBioma = ev.currentTarget.value;
-        
         if (listaProjetos[index]) {
-            const proj = listaProjetos[index];
-            proj.bioma = novoBioma;
-
-            const profModule = professions[proj.profissao];
+            listaProjetos[index].bioma = novoBioma;
+            const profModule = professions[listaProjetos[index].profissao];
             if (profModule && typeof profModule.onBiomeChange === "function") {
-                const check = profModule.onBiomeChange(proj, novoBioma, actor);
-                if (check === false) return;
+                profModule.onBiomeChange(listaProjetos[index], novoBioma, actor);
             }
             await actor.setFlag("professions-reworked-5e", "projetos", listaProjetos);
         }
     });
 
-    // Adicionar Profissão
-    html.find('.add-profession-btn').click(async (ev) => {
-        salvarScroll();
-        const novaProf = html.find('.select-new-profession').val();
+    // Aprender nova profissão
+    $html.find('.add-profession-btn').off('click.professions').on('click.professions', async (ev) => {
+        salvarScrollBound();
+        const novaProf = $html.find('.select-new-profession').val();
         if (!profissoesAtivas.includes(novaProf)) {
             profissoesAtivas.push(novaProf);
             await actor.setFlag("professions-reworked-5e", "profissoesAtivas", profissoesAtivas);
         }
     });
 
-    // Remover Profissão
-    html.find('.remove-profession').click(async (ev) => {
+    // Esquecer profissão
+    $html.find('.remove-profession').off('click.professions').on('click.professions', async (ev) => {
         ev.stopPropagation();
-        salvarScroll();
+        salvarScrollBound();
         const profName = ev.currentTarget.closest('.profession-section').dataset.prof;
-        const confirm = await Dialog.confirm({ title: "Abandonar", content: `<p>Remover <strong>${profName}</strong>?</p>` });
+        const confirm = await Dialog.confirm({ title: "Remover", content: `<p>Esquecer a profissão <strong>${profName}</strong>?</p>` });
         if (confirm) {
-            const novasProf = profissoesAtivas.filter(p => p !== profName);
-            const novosProj = listaProjetos.filter(p => p.profissao !== profName);
-            await actor.update({
-                "flags.professions-reworked-5e.profissoesAtivas": novasProf,
-                "flags.professions-reworked-5e.projetos": novosProj
-            });
+            profissoesAtivas = profissoesAtivas.filter(p => p !== profName);
+            await actor.setFlag("professions-reworked-5e", "profissoesAtivas", profissoesAtivas);
         }
     });
 
-    // Colapsar Seção de Profissão
-    html.find('.prof-header').click(async (ev) => {
-        if ($(ev.target).closest('.remove-profession').length) return;
-        salvarScroll();
+    // Collapse Profissão
+    $html.find('.prof-header').off('click.professions').on('click.professions', async (ev) => {
+        if ($(ev.target).closest('.remove-profession, select, option, button').length) return;
+        salvarScrollBound();
         const profName = ev.currentTarget.closest('.profession-section').dataset.prof;
         colapsos[profName] = !colapsos[profName];
         await actor.setFlag("professions-reworked-5e", "colapsos", colapsos);
     });
 
     // Deletar Projeto
-    html.find('.delete-project').click(async (ev) => {
-        salvarScroll();
+    $html.find('.delete-project').off('click.professions').on('click.professions', async (ev) => {
+        salvarScrollBound();
         const card = ev.currentTarget.closest('.project-card');
         const index = card.dataset.index;
-        if (index !== undefined && listaProjetos[index]) {
-            const proj = listaProjetos[index];
-            const confirm = await Dialog.confirm({ title: "Excluir", content: `<p>Excluir <strong>${proj.nome}</strong>?</p>` });
+        if (listaProjetos[index]) {
+            const confirm = await Dialog.confirm({ title: "Excluir", content: `<p>Excluir o projeto <strong>${listaProjetos[index].nome}</strong>?</p>` });
             if (confirm) {
                 listaProjetos.splice(index, 1);
                 await actor.setFlag("professions-reworked-5e", "projetos", listaProjetos);
@@ -353,22 +313,23 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
     });
 
     // Renomear Projeto
-    html.find('.edit-project-name').click(async (ev) => {
+    $html.find('.edit-project-name').off('click.professions').on('click.professions', async (ev) => {
         ev.stopPropagation();
-        salvarScroll();
+        salvarScrollBound();
         const card = ev.currentTarget.closest('.project-card');
         const index = card.dataset.index;
         const projeto = listaProjetos[index];
+
         if (projeto) {
             new Dialog({
-                title: "Editar Projeto",
+                title: "Renomear Projeto",
                 content: `<form><div class="form-group"><label>Novo Nome:</label><input type="text" name="novoNome" value="${projeto.nome}" autofocus></div></form>`,
                 buttons: {
                     salvar: {
                         label: "Salvar",
                         icon: '<i class="fas fa-check"></i>',
-                        callback: async (html) => {
-                            const novoNome = html.find('[name="novoNome"]').val();
+                        callback: async (htmlDlg) => {
+                            const novoNome = $(htmlDlg).find('[name="novoNome"]').val();
                             if (novoNome && novoNome.trim() !== "") {
                                 listaProjetos[index].nome = novoNome.trim();
                                 await actor.setFlag("professions-reworked-5e", "projetos", listaProjetos);
@@ -385,9 +346,9 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
         }
     });
 
-    // Inputs Gerais de Projeto
-    html.find('.roll-attribute').change(async (ev) => {
-        salvarScroll();
+    // Configurações do Card de Projeto
+    $html.find('.roll-attribute').off('change.professions').on('change.professions', async (ev) => {
+        salvarScrollBound();
         const card = ev.currentTarget.closest('.project-card');
         const index = card.dataset.index;
         if (listaProjetos[index]) {
@@ -396,8 +357,8 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
         }
     });
 
-    html.find('.adv-checkbox').change(async (ev) => {
-        salvarScroll();
+    $html.find('.adv-checkbox').off('change.professions').on('change.professions', async (ev) => {
+        salvarScrollBound();
         const card = ev.currentTarget.closest('.project-card');
         const index = card.dataset.index;
         if (listaProjetos[index]) {
@@ -406,10 +367,9 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
         }
     });
 
-    html.find('.disadv-checkbox').change(async (ev) => {
-        salvarScroll();
+    $html.find('.disadv-checkbox').off('change.professions').on('change.professions', async (ev) => {
+        salvarScrollBound();
         const card = ev.currentTarget.closest('.project-card');
-        if (!card) return;
         const index = card.dataset.index;
         if (listaProjetos[index]) {
             listaProjetos[index].usoDesvantagem = ev.currentTarget.checked;
@@ -417,8 +377,8 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
         }
     });
 
-    html.find('.roll-bonus').change(async (ev) => {
-        salvarScroll();
+    $html.find('.roll-bonus').off('change.professions').on('change.professions', async (ev) => {
+        salvarScrollBound();
         const card = ev.currentTarget.closest('.project-card');
         const index = card.dataset.index;
         if (listaProjetos[index]) {
@@ -427,148 +387,131 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
         }
     });
 
-    html.find('.profession-tool-select').change(async (ev) => {
-        salvarScroll();
+    // Equipar Ferramenta
+    $html.find('.profession-tool-select').off('change.professions').on('change.professions', async (ev) => {
+        salvarScrollBound();
         const profName = ev.currentTarget.closest('.profession-section').dataset.prof;
         ferramentasEquipadas[profName] = ev.currentTarget.value;
         await actor.setFlag("professions-reworked-5e", "ferramentasEquipadas", ferramentasEquipadas);
     });
 
-    // Subtipo mudando no dropdown de criação
-    html.find('.new-project-subtype').change(ev => {
+    // Mudar Subtipo ao Criar Projeto
+    $html.find('.new-project-subtype').off('change.professions').on('change.professions', ev => {
         const container = $(ev.currentTarget).closest('.project-creation-form');
         const profSection = container.closest('.profession-section');
-        const pName = profSection.data('prof');
-        const profModule = professions[pName];
+        const profName = profSection.data('prof');
+        const profModule = professions[profName];
+
         if (profModule && typeof profModule.atualizarDropdown === "function") {
             profModule.atualizarDropdown(container);
         }
     });
 
-    // Criar Projeto
-    html.find('.create-project-btn').click(async (ev) => {
-        salvarScroll();
-        const prof = ev.currentTarget.closest('.profession-section').dataset.prof;
-        const container = $(ev.currentTarget.closest('.project-creation-form'));
+    // Criar Novo Projeto
+    $html.find('.create-project-btn').off('click.professions').on('click.professions', async (ev) => {
+        salvarScrollBound();
+        const container = $(ev.currentTarget).closest('.project-creation-form');
+        const profSection = container.closest('.profession-section');
+        const profName = profSection.data('prof');
+        
         const nomeInput = container.find('.new-project-name').val();
+        const nome = (nomeInput && nomeInput.trim() !== "") ? nomeInput.trim() : `Novo Projeto de ${profName}`;
         const subTipo = container.find('.new-project-subtype').val();
-        let valorComplexidade = container.find('.new-project-complexity').val();
+        const valorComplexidade = container.find('.new-project-complexity').val();
 
-        // Dados padrão para o projeto
-        const projectData = {
-            nome: nomeInput || `Novo Projeto de ${prof}`,
-            profissao: prof,
+        let projectData = {
+            profissao: profName,
+            nome: nome,
             subTipo: subTipo,
-            timestamp: Date.now(),
             complexidade: valorComplexidade,
-            dificuldadeEspecifica: null,
-            raridade: null,
-            tipoArma: null,
-            tipoArmadura: null,
-            bioma: null,
-            acertosTotaisPreparo: null,
             acertosAtuais: 0,
-            atributoPadrao: "int", 
+            atributoPadrao: "int",
             usoVantagem: false,
-            bonusSituacional: "",
-            valorAtual: 0,
-            idadeDragao: null,
-            tipoVenenoColeta: null,
-            tipoErva: null,
-            fase: null,
-            xpColetado: false
+            usoDesvantagem: false,
+            bonusSituacional: ""
         };
 
-        // Delegar à profissão correspondente
-        const profModule = professions[prof];
+        const profModule = professions[profName];
         if (profModule && typeof profModule.onCreateProject === "function") {
-            const success = profModule.onCreateProject(projectData, container, { actor });
-            if (success === false) return; // Halt se validação falhar
+            const res = profModule.onCreateProject(projectData, container, { actor });
+            if (res === false) return;
         }
 
         listaProjetos.push(projectData);
         await actor.setFlag("professions-reworked-5e", "projetos", listaProjetos);
     });
 
-    // Rolagem de Teste de Projeto
-    html.find('.roll-profession-test').click(async (ev) => {
-        salvarScroll();
+    // Rolar Teste de Profissão
+    $html.find('.roll-profession-test').off('click.professions').on('click.professions', async (ev) => {
+        salvarScrollBound();
         const card = ev.currentTarget.closest('.project-card');
         const index = card.dataset.index;
-        const profSection = ev.currentTarget.closest('.profession-section');
-        const profName = profSection.dataset.prof;
-        
         const projeto = listaProjetos[index];
+
         if (!projeto) return;
 
-        // Pré-validação da profissão
-        const profModule = professions[profName];
-        if (profModule && typeof profModule.onPreRoll === "function") {
-            const proceed = profModule.onPreRoll(projeto, actor);
-            if (proceed === false) return;
+        const profName = projeto.profissao;
+        const configProf = PROFISSOES_CONFIG[profName];
+        const baseTool = configProf ? configProf.ferramenta : "";
+        const toolItemId = ferramentasEquipadas[profName];
+        const toolItem = actor.items.get(toolItemId);
+
+        if (!toolItem || toolItem.type !== "tool" || toolItem.system.type.baseItem !== baseTool) {
+            ui.notifications.warn(`Selecione uma ferramenta válida de ${profName} equipada no painel!`);
+            return;
         }
 
-        const attributeKey = projeto.atributoPadrao || "int";
-        const hasAdvantage = projeto.usoVantagem || false;
-        const hasDisadvantage = projeto.usoDesvantagem || false;
-        const situationalBonus = projeto.bonusSituacional || "";
-        const toolId = ferramentasEquipadas[profName] || ""; 
-        const hasTool = toolId !== "";
+        const attrKey = projeto.atributoPadrao || "int";
+        const attrMod = actor.system.abilities[attrKey].mod;
+        const attrLabel = ATRIBUTOS[attrKey];
+        const toolProf = toolItem.system.prof?.hasProficiency ? (toolItem.system.prof.flat || (actor.system.attributes.prof * (toolItem.system.prof.multiplier || 1))) : 0;
+        const toolName = toolItem.name;
 
-        const attrMod = actor.system.abilities[attributeKey].mod;
-        const attrLabel = ATRIBUTOS[attributeKey];
-
-        let profBonus = 0;
-        let toolLabel = "Sem Ferramenta";
-        let isExpertise = false; 
-        
-        if (hasTool) {
-            const toolItem = actor.items.get(toolId);
-            if (toolItem) {
-                toolLabel = toolItem.name;
-                const profMultiplier = toolItem.system.prof?.multiplier || 0; 
-                profBonus = Math.floor(actor.system.attributes.prof * profMultiplier);
-                if (profMultiplier >= 2) isExpertise = true; 
-            }
-        }
+        const hasAdv = projeto.usoVantagem || false;
+        const hasDis = projeto.usoDesvantagem || false;
+        const bonusSit = projeto.bonusSituacional || "";
 
         let diceFormula = "1d20";
-        if (hasTool && hasAdvantage && !hasDisadvantage) diceFormula = "2d20kh1"; 
-        else if (!hasAdvantage && (hasDisadvantage || !hasTool)) diceFormula = "2d20kl1"; 
-        else diceFormula = "1d20"; 
+        if (hasAdv && !hasDis) diceFormula = "2d20kh1";
+        else if (!hasAdv && hasDis) diceFormula = "2d20kl1";
 
-        let formula = `${diceFormula} + ${attrMod}[${attrLabel}]`;
-        if (profBonus > 0) formula += ` + ${profBonus}[Prof]`;
-        if (situationalBonus) formula += ` + ${situationalBonus}[Sit]`;
+        let formula = `${diceFormula} + ${attrMod}[${attrLabel}] + ${toolProf}[${toolName}]`;
+        if (bonusSit) formula += ` + ${bonusSit}[Sit]`;
 
         try {
             const r = new Roll(formula, actor.getRollData());
             await r.evaluate();
 
-            let diffAlvo = projeto.dificuldadeEspecifica || COMPLEXIDADE_PROJETO[projeto.complexidade].dificuldade;
-            const res = calcularResultado(r.total, diffAlvo);
-            const cfg = RESULTADO_FORMAT[res.resultado] || { label: res.resultado, color: "black", bg: "#eee", border: "#ccc" };
-            
-            let detalhesResultado = "";
-
-            // Rolagem customizada ou geral
-            if (profModule && typeof profModule.handleRoll === "function") {
-                detalhesResultado = await profModule.handleRoll(projeto, actor, r, res, cfg, isExpertise);
+            let diffAlvo = "Médio";
+            if (projeto.dificuldadeEspecifica) {
+                diffAlvo = projeto.dificuldadeEspecifica;
             } else {
-                // Lógica de progressão padrão
-                const metaAcertos = projeto.acertosTotaisPreparo || (COMPLEXIDADE_PROJETO[projeto.complexidade]?.acertosNecessarios || 10);
-                projeto.acertosAtuais = Math.min(projeto.acertosAtuais + res.acertos, metaAcertos);
-
-                if (projeto.acertosAtuais >= metaAcertos && !projeto.dataConclusao) {
-                    projeto.dataConclusao = Date.now();
-                }
-
-                detalhesResultado = `
-                    <div style="font-size: 14px; font-weight: bold; color: ${cfg.color}; margin-top: 5px;">
-                        ${cfg.label} <span style="font-size: 12px; color: #555;">(+${res.acertos} Acertos)</span>
-                    </div>
-                `;
+                const compConfig = COMPLEXIDADE_PROJETO[projeto.complexidade];
+                diffAlvo = compConfig ? compConfig.dificuldade : "Médio";
             }
+
+            const res = calcularResultado(r.total, diffAlvo);
+            
+            let mudou = false;
+            const profModule = professions[profName];
+            if (profModule && typeof profModule.onRollResult === "function") {
+                mudou = profModule.onRollResult(projeto, res, { actor });
+            } else {
+                projeto.acertosAtuais += res.acertos;
+                const compConfig = COMPLEXIDADE_PROJETO[projeto.complexidade];
+                const totalReq = compConfig ? compConfig.acertosNecessarios : 0;
+
+                if (projeto.acertosAtuais >= totalReq) {
+                    projeto.isConcluido = true;
+                    if (!projeto.dataConclusao) projeto.dataConclusao = Date.now();
+                }
+                mudou = true;
+            }
+
+            const cfg = RESULTADO_FORMAT[res.resultado] || { label: res.resultado, color: "black", bg: "#eee", border: "#ccc" };
+            let textAcertos = res.acertos === 1 ? "+1 Acerto" : `+${res.acertos} Acertos`;
+            if (res.acertos === 0) textAcertos = "0 Acertos";
+            if (res.acertos < 0) textAcertos = `${res.acertos} Acertos`;
 
             const contentHTML = `
                 <div style="border: 2px solid ${cfg.border}; background-color: ${cfg.bg}; padding: 8px; text-align: center; color: black; border-radius: 5px; font-family: 'Signika', sans-serif;">
@@ -576,14 +519,18 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
                         ${cfg.label}
                     </h3>
                     <div style="font-size: 12px; margin-bottom: 5px; color: #444;">
-                        <strong>Trabalhando:</strong> ${projeto.nome}<br>
-                        <strong>Ferramenta:</strong> ${toolLabel}
+                        <strong>${projeto.nome}</strong> (${profName})<br>
+                        (Dificuldade: ${diffAlvo})
                     </div>
-                    ${detalhesResultado}
+                    <div style="font-size: 14px; font-weight: bold; color: ${cfg.color}; margin-top: 5px;">
+                        ${cfg.label} <span style="font-size: 12px; color: #555;">(${textAcertos})</span>
+                    </div>
                 </div>
             `;
 
-            await actor.setFlag("professions-reworked-5e", "projetos", listaProjetos);
+            if (mudou) {
+                await actor.setFlag("professions-reworked-5e", "projetos", listaProjetos);
+            }
 
             r.toMessage({
                 speaker: ChatMessage.getSpeaker({ actor }),
@@ -596,10 +543,10 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
     });
 
     // Resgatar Recompensa no Inventário
-    html.find('.get-reward-btn').not('.get-meal-reward-btn').click(async (ev) => {
+    $html.find('.get-reward-btn').not('.get-meal-reward-btn').off('click.professions').on('click.professions', async (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
-        salvarScroll(); 
+        salvarScrollBound(); 
         const scrollSalvo = app._scrollInfo;
         
         const card = ev.currentTarget.closest('.project-card');
@@ -621,16 +568,6 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
             itemKey = `${projeto.subTipo} ${projeto.raridade}`;
         }
 
-        if (projeto.subTipo === "Pergaminho de Magia") {
-            await abrirSeletorPergaminhoMagia(actor, projeto, async (selectedSpell) => {
-                projeto.itemColetado = true;
-                tabParaManter = "professions";
-                app._scrollInfo = scrollSalvo;
-                await actor.setFlag("professions-reworked-5e", "projetos", listaProjetos);
-            }, app, scrollSalvo);
-            return;
-        }
-
         const categoriaItem = RECOMPENSAS[projeto.profissao];
         let configItem = categoriaItem ? (categoriaItem[itemKey] || categoriaItem[projeto.subTipo]) : null;
 
@@ -649,9 +586,9 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
     });
 
     // Adicionar XP de Projeto
-    html.find('.add-xp-btn').not('.xp-meal-btn').click(async (ev) => {
+    $html.find('.add-xp-btn').not('.xp-meal-btn').off('click.professions').on('click.professions', async (ev) => {
         ev.stopPropagation();
-        salvarScroll();
+        salvarScrollBound();
         const card = ev.currentTarget.closest('.project-card');
         const index = card.dataset.index;
         const projeto = listaProjetos[index];
@@ -713,12 +650,195 @@ Hooks.on("renderActorSheet5eCharacter", async (app, html, data) => {
     // Delegar listeners específicos de cada profissão
     for (const [pName, profModule] of Object.entries(professions)) {
         if (profModule && typeof profModule.registerListeners === "function") {
-            profModule.registerListeners(html, actor, { salvarScroll, tabParaManter, app });
+            profModule.registerListeners($html, actor, { salvarScroll: salvarScrollBound, tabParaManter, app });
         }
     }
 
     // Registrar listeners de Treinamento
-    registerTrainingListeners(html, actor, { salvarScroll, tabParaManter });
+    registerTrainingListeners($html, actor, { salvarScroll: salvarScrollBound, tabParaManter });
+}
+
+let tidyTabsRegistered = false;
+function registerTidy5eTabs(api) {
+    if (!api || tidyTabsRegistered) return;
+    tidyTabsRegistered = true;
+
+    try {
+        if (api.models?.HandlebarsTab) {
+            api.registerCharacterTab(
+                new api.models.HandlebarsTab({
+                    tabId: "professions",
+                    title: "Profissões",
+                    icon: "fas fa-hammer",
+                    path: "modules/professions-reworked-5e/templates/professions-tab.hbs",
+                    getData: async (context) => {
+                        return await prepareProfessionsRenderData(context.actor);
+                    },
+                    onRender: (params) => {
+                        const $element = $(params.element);
+                        const actor = params.app?.actor || params.data?.actor;
+                        attachProfessionsTabListeners(params.app, $element, params.data, () => salvarScroll(actor, $element));
+                        restaurarScroll(actor, $element);
+                    }
+                })
+            );
+
+            api.registerCharacterTab(
+                new api.models.HandlebarsTab({
+                    tabId: "training",
+                    title: "Treinamento",
+                    icon: "fas fa-graduation-cap",
+                    path: "modules/professions-reworked-5e/templates/training-tab.hbs",
+                    getData: async (context) => {
+                        const trainingData = prepareTrainingData(context.actor);
+                        return {
+                            ...trainingData,
+                            opcoesTreino: Object.keys(TREINAMENTO_CONFIG),
+                        };
+                    },
+                    onRender: (params) => {
+                        const $element = $(params.element);
+                        const actor = params.app?.actor || params.data?.actor;
+                        attachProfessionsTabListeners(params.app, $element, params.data, () => salvarScroll(actor, $element));
+                        restaurarScroll(actor, $element);
+                    }
+                })
+            );
+            console.log("Profissões Dinâmicas | Abas registradas com sucesso no Tidy 5e Sheet API!");
+        }
+    } catch (err) {
+        console.error("Profissões Dinâmicas | Erro ao registrar no Tidy 5e Sheet API:", err);
+    }
+}
+
+Hooks.once("tidy5e-sheet.ready", (api) => {
+    registerTidy5eTabs(api);
+});
+
+Hooks.once("ready", () => {
+    const tidyApi = game.modules.get("tidy5e-sheet")?.api;
+    if (tidyApi) {
+        registerTidy5eTabs(tidyApi);
+    }
+});
+
+async function renderProfessionsTabSystem(app, htmlInput, data) {
+    if (!app?.actor || app.actor.type !== "character") return;
+
+    let rootEl = htmlInput;
+    if (Array.isArray(htmlInput)) rootEl = htmlInput[0];
+    if (rootEl instanceof jQuery) rootEl = rootEl[0];
+    if (!rootEl && app.element) rootEl = app.element;
+    if (Array.isArray(rootEl)) rootEl = rootEl[0];
+    if (rootEl instanceof jQuery) rootEl = rootEl[0];
+
+    let $container = $(rootEl || app.element);
+    if (app.element) {
+        const appEl = app.element instanceof jQuery ? app.element[0] : (Array.isArray(app.element) ? app.element[0] : app.element);
+        if (appEl) $container = $(appEl);
+    }
+
+    if (!$container || !$container.length) return;
+
+    const actor = app.actor;
+
+    const profData = await prepareProfessionsRenderData(actor);
+    const trainingData = prepareTrainingData(actor);
+
+    const templatePath = "modules/professions-reworked-5e/templates/professions-tab.hbs";
+    const myTabHtml = await renderTemplate(templatePath, profData);
+
+    const trainingTemplatePath = "modules/professions-reworked-5e/templates/training-tab.hbs";
+    const trainingHtml = await renderTemplate(trainingTemplatePath, {
+        ...trainingData,
+        opcoesTreino: Object.keys(TREINAMENTO_CONFIG),
+    });
+
+    let $nav = $container.find('.sheet-navigation.tabs, nav.sheet-navigation, nav.tabs, [data-group="primary"].tabs, [data-group="primary"], .tidy-tabs, [role="tablist"], .tabs').first();
+    if (!$nav.length) {
+        $nav = $container.find('nav').first();
+    }
+
+    let $sheetBody = $container.find('.sheet-body, .sheet-content, section.tab-body, .tidy-sheet-body, main, [data-group="primary"].tab-content, .tab-content').first();
+    if (!$sheetBody.length) {
+        $sheetBody = $container.find('form').first();
+    }
+
+    if ($nav.length && $nav.find('[data-tab="professions"]').length === 0) {
+        $nav.append($('<a class="item" data-tab="professions" data-group="primary" role="tab" title="Profissões"><i class="fas fa-hammer"></i> Profissões</a>'));
+    }
+    if ($nav.length && $nav.find('[data-tab="training"]').length === 0) {
+        $nav.append($('<a class="item" data-tab="training" data-group="primary" role="tab" title="Treinamento"><i class="fas fa-graduation-cap"></i> Treinamento</a>'));
+    }
+
+    $container.find('.professions-tab').remove();
+    $container.find('.training-tab').remove();
+
+    const $profTabHtml = $(myTabHtml);
+    const $trainTabHtml = $(trainingHtml);
+
+    $sheetBody.append($profTabHtml);
+    $sheetBody.append($trainTabHtml);
+
+    const activateCustomTab = (tabName) => {
+        $nav.find('[data-tab]').removeClass('active');
+        $nav.find(`[data-tab="${tabName}"]`).addClass('active');
+
+        $sheetBody.find('.tab, section.tab-body .tab, .tab-content .tab').removeClass('active').hide();
+        if (tabName === "professions") {
+            $profTabHtml.addClass('active').show();
+        } else if (tabName === "training") {
+            $trainTabHtml.addClass('active').show();
+        }
+        tabParaManter = tabName;
+    };
+
+    $nav.find('[data-tab="professions"]').off('click.professions').on('click.professions', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        activateCustomTab("professions");
+    });
+
+    $nav.find('[data-tab="training"]').off('click.professions').on('click.professions', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        activateCustomTab("training");
+    });
+
+    $nav.find('[data-tab]').not('[data-tab="professions"]').not('[data-tab="training"]').off('click.professionsOther').on('click.professionsOther', () => {
+        $profTabHtml.removeClass('active').hide();
+        $trainTabHtml.removeClass('active').hide();
+    });
+
+    $container.find('.profession-section').each((i, el) => {
+        const prof = $(el).data('prof');
+        const form = $(el).find('.project-creation-form');
+        const profModule = professions[prof];
+        if (profModule && typeof profModule.atualizarDropdown === "function") {
+            profModule.atualizarDropdown(form);
+        }
+    });
+
+    attachProfessionsTabListeners(app, $container, data, () => salvarScroll(actor, $container));
+    restaurarScroll(actor, $container);
+
+    if (tabParaManter === "professions" || tabParaManter === "training") {
+        activateCustomTab(tabParaManter);
+        tabParaManter = null;
+    } else if (app._tabs && app._tabs[0] && typeof app._tabs[0].activate === "function") {
+        try {
+            const activeTab = app._tabs[0].active;
+            if (activeTab === "professions" || activeTab === "training") {
+                activateCustomTab(activeTab);
+            }
+        } catch (e) {}
+    }
+}
+
+CHARACTER_SHEET_HOOKS.forEach(hookName => {
+    Hooks.on(hookName, (app, html, data) => {
+        renderProfessionsTabSystem(app, html, data);
+    });
 });
 
 export async function abrirDialogoRecompensa(actor, projeto, configItem, onConcluidoCallback, app = null, scrollSalvo = null) {

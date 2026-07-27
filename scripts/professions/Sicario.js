@@ -108,7 +108,8 @@ export const Sicario = {
     },
 
     registerListeners(html, actor, { salvarScroll }) {
-        html.find('.new-project-herb-type').change(ev => {
+        const $html = $(html);
+        $html.find('.new-project-herb-type').change(ev => {
             const container = $(ev.currentTarget).closest('.project-creation-form');
             const val = $(ev.currentTarget).val();
             const compSelect = container.find('.new-project-complexity');

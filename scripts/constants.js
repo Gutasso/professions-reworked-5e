@@ -11,6 +11,15 @@ export const TABELA_DIFICULDADE = {
     "Quase Impossível": { g_sucesso: 50, a_sucesso: 45, m_sucesso: 41, sucesso: 37, b_sucesso: 34, media: 31, b_falha: 29, falha: 27, m_falha: 25, a_falha: 23, g_falha: 21 }
 };
 
+export const DIFICULDADES_VALOR = {
+    "Muito Fácil": 5,
+    "Fácil": 10,
+    "Médio": 15,
+    "Difícil": 20,
+    "Muito Difícil": 25,
+    "Quase Impossível": 30
+};
+
 export const TREINAMENTO_CONFIG = {
     "Atributo": { icon: "fa-dumbbell", label: "Treinamento de Atributo" },
     "Perícia":  { icon: "fa-book-reader", label: "Treinamento de Perícia" },

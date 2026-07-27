@@ -13,7 +13,7 @@ export const Cartografo = {
         complexitySelect.show();
 
         if (valorAtual === "Cópia de Mapa") {
-            complexitySelect.html('<option value="Moderadamente Complexo">Moderado</option>');
+            complexitySelect.html('<option value="Moderadamente Complexo" selected>Moderadamente Complexo</option>');
             complexitySelect.prop('disabled', true);
         } else if (valorAtual === "Desenho de Mapa") {
             complexitySelect.hide();
@@ -25,12 +25,14 @@ export const Cartografo = {
 
         if (subTipo === "Cópia de Mapa") {
             projectData.complexidade = "Moderadamente Complexo";
+            projectData.dificuldadeEspecifica = "Médio";
         } else if (subTipo === "Desenho de Mapa") {
             projectData.fase = "rascunho";
             projectData.totalNecessario = 0;
-            projectData.acertosTotaisPreparo = 0;
+            projectData.acertosAtuais = 0;
+            projectData.bioma = "Floresta";
+            projectData.dificuldadeEspecifica = CARTOGRAFO_BIOMA_DIFF["Floresta"] || "Médio";
             projectData.complexidade = "Simples";
-            projectData.dificuldadeEspecifica = "Selecione Bioma";
         }
         return true;
     },
@@ -49,6 +51,34 @@ export const Cartografo = {
                 projeto.complexidade = compMap[novaDiff] || "Simples";
                 return true;
             }
+        }
+        return false;
+    },
+
+    onRollResult(projeto, res, { actor }) {
+        if (projeto.subTipo === "Desenho de Mapa") {
+            if (projeto.fase === "rascunho") {
+                const incremento = CARTOGRAFO_RASCUNHO_INC[res.resultado] ?? 0.5;
+                if (typeof projeto.totalNecessario !== "number") projeto.totalNecessario = 0;
+                projeto.totalNecessario += incremento;
+                return true;
+            } else if (projeto.fase === "definitivo") {
+                const meta = projeto.totalNecessario || 0;
+                projeto.acertosAtuais = Math.min(projeto.acertosAtuais + res.acertos, meta);
+                if (projeto.acertosAtuais >= meta && meta > 0) {
+                    projeto.isConcluido = true;
+                    if (!projeto.dataConclusao) projeto.dataConclusao = Date.now();
+                }
+                return true;
+            }
+        } else if (projeto.subTipo === "Cópia de Mapa") {
+            projeto.acertosAtuais = Math.min(projeto.acertosAtuais + res.acertos, 4);
+            const totalReq = 4; // Moderadamente Complexo = 4 acertos
+            if (projeto.acertosAtuais >= totalReq) {
+                projeto.isConcluido = true;
+                if (!projeto.dataConclusao) projeto.dataConclusao = Date.now();
+            }
+            return true;
         }
         return false;
     },
@@ -147,7 +177,8 @@ export const Cartografo = {
     },
 
     registerListeners(html, actor, { salvarScroll }) {
-        html.find('.finish-draft-btn').click(async (ev) => {
+        const $html = $(html);
+        $html.find('.finish-draft-btn').off('click.professions').on('click.professions', async (ev) => {
             ev.stopPropagation();
             salvarScroll();
             const card = ev.currentTarget.closest('.project-card');
@@ -166,7 +197,7 @@ export const Cartografo = {
             }
         });
 
-        html.find('.resume-draft-btn').click(async (ev) => {
+        $html.find('.resume-draft-btn').off('click.professions').on('click.professions', async (ev) => {
             ev.stopPropagation();
             salvarScroll();
             const card = ev.currentTarget.closest('.project-card');
@@ -186,14 +217,14 @@ export const Cartografo = {
             }
         });
 
-        html.find('.conclude-map-btn').click(async (ev) => {
+        $html.find('.conclude-map-btn').off('click.professions').on('click.professions', async (ev) => {
             ev.stopPropagation();
             salvarScroll();
             const card = ev.currentTarget.closest('.project-card');
             const index = card.dataset.index;
             const confirm = await Dialog.confirm({
                 title: "Concluir Mapa",
-                content: `<p>Deseja Concluir a elaboração deste Mapa e receber suas recompensas?</p>`
+                content: `<p>Deseja Concluir o Mapa e finalizar o projeto?</p>`
             });
             if (confirm) {
                 let listaProjetos = actor.getFlag("professions-reworked-5e", "projetos") || [];

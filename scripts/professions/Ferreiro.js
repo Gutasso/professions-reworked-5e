@@ -119,8 +119,8 @@ export const Ferreiro = {
     },
 
     registerListeners(html, actor, { salvarScroll }) {
-        // Mostra o checkbox de armadura de placas quando armadura pesada é selecionada
-        html.find('.new-project-complexity').change(ev => {
+        const $html = $(html);
+        $html.find('.new-project-complexity').change(ev => {
             const container = $(ev.currentTarget).closest('.project-creation-form');
             const profSection = container.closest('.profession-section');
             if (profSection.data('prof') === "Ferreiro") {

@@ -102,22 +102,23 @@ export function prepareTrainingData(actor) {
 }
 
 export function registerTrainingListeners(html, actor, { salvarScroll, tabParaManter }) {
+    const $html = $(html);
     const getTreinosAtivos = () => actor.getFlag("professions-reworked-5e", "treinosAtivos") || [];
     const getTreinosColapsos = () => actor.getFlag("professions-reworked-5e", "treinosColapsos") || {};
     const getListaTreinamentos = () => actor.getFlag("professions-reworked-5e", "listaTreinamentos") || [];
 
-    html.find('.add-training-btn').click(async (ev) => {
+    $html.find('.add-training-btn').off('click.professions').on('click.professions', async (ev) => {
         salvarScroll();
         const treinosAtivos = getTreinosAtivos();
         const listaTreinamentos = getListaTreinamentos();
-        const novoTreino = html.find('.select-new-training').val();
+        const novoTreino = $html.find('.select-new-training').val();
         if (!treinosAtivos.includes(novoTreino)) {
             treinosAtivos.push(novoTreino);
             await actor.setFlag("professions-reworked-5e", "treinosAtivos", treinosAtivos);
         }
     });
 
-    html.find('.remove-training').click(async (ev) => {
+    $html.find('.remove-training').off('click.professions').on('click.professions', async (ev) => {
         ev.stopPropagation();
         salvarScroll();
         const type = ev.currentTarget.closest('.training-section').dataset.type;
@@ -129,7 +130,7 @@ export function registerTrainingListeners(html, actor, { salvarScroll, tabParaMa
         }
     });
 
-    html.find('.training-header').click(async (ev) => {
+    $html.find('.training-header').off('click.professions').on('click.professions', async (ev) => {
         if ($(ev.target).closest('.remove-training').length) return;
         salvarScroll();
         const type = ev.currentTarget.closest('.training-section').dataset.type;
@@ -138,7 +139,7 @@ export function registerTrainingListeners(html, actor, { salvarScroll, tabParaMa
         await actor.setFlag("professions-reworked-5e", "treinosColapsos", treinosColapsos);
     });
 
-    html.find('.start-skill-training-btn').click(async (ev) => {
+    $html.find('.start-skill-training-btn').off('click.professions').on('click.professions', async (ev) => {
         salvarScroll();
         const container = $(ev.currentTarget).closest('.project-creation-form');
         const skillKey = container.find('.new-training-skill').val();
@@ -173,7 +174,7 @@ export function registerTrainingListeners(html, actor, { salvarScroll, tabParaMa
         await actor.setFlag("professions-reworked-5e", "listaTreinamentos", listaTreinamentos);
     });
 
-    html.find('.start-attribute-training-btn').click(async (ev) => {
+    $html.find('.start-attribute-training-btn').off('click.professions').on('click.professions', async (ev) => {
         salvarScroll();
         const container = $(ev.currentTarget).closest('.project-creation-form');
         const attrKey = container.find('.new-training-attribute').val();
@@ -206,32 +207,33 @@ export function registerTrainingListeners(html, actor, { salvarScroll, tabParaMa
         await actor.setFlag("professions-reworked-5e", "listaTreinamentos", listaTreinamentos);
     });
 
-    html.find('.start-save-training-btn').click(async (ev) => {
+    $html.find('.start-save-training-btn').off('click.professions').on('click.professions', async (ev) => {
         salvarScroll();
         const container = $(ev.currentTarget).closest('.project-creation-form');
         const attrKey = container.find('.new-training-save').val();
         const listaTreinamentos = getListaTreinamentos();
 
         if (!attrKey) {
-            ui.notifications.warn("Selecione um atributo para treinar resistência!");
+            ui.notifications.warn("Selecione uma resistência para treinar!");
             return;
         }
 
         const attrLabel = ATRIBUTOS[attrKey];
-        const valorAtual = actor.system.abilities[attrKey].value;
+        const hasSaveProf = actor.system.abilities[attrKey].proficient === 1;
 
-        const meta = 80;
-        const diff = "Médio";
-        const infoExtra = `(Valor atual: ${valorAtual} - Dificuldade: Médio)`;
+        if (hasSaveProf) {
+            ui.notifications.warn(`Você já possui proficiência na resistência de ${attrLabel}!`);
+            return;
+        }
 
         listaTreinamentos.push({
             categoria: "Resistência",
-            nome: `Treinamento de Resistência de ${attrLabel}`,
+            nome: `Treinamento de Resistência (${attrLabel})`,
             attrKey: attrKey,
             acertosAtuais: 0,
-            totalNecessario: meta,
-            dificuldadeEspecifica: diff,
-            infoExtra: infoExtra,
+            totalNecessario: 50,
+            dificuldadeEspecifica: "Difícil",
+            infoExtra: "(Resistência - Difícil)",
             usoVantagem: false,
             usoDesvantagem: false,
             bonusSituacional: ""
@@ -240,26 +242,28 @@ export function registerTrainingListeners(html, actor, { salvarScroll, tabParaMa
         await actor.setFlag("professions-reworked-5e", "listaTreinamentos", listaTreinamentos);
     });
 
-    html.find('.start-feat-training-btn').click(async (ev) => {
+    $html.find('.start-feat-training-btn').off('click.professions').on('click.professions', async (ev) => {
         salvarScroll();
         const container = $(ev.currentTarget).closest('.project-creation-form');
-        const nomeInput = container.find('.new-training-name-feat').val();
+        const featName = container.find('.new-training-name-feat, .new-training-feat-name').val();
+        const attrKey = container.find('.new-training-feat-attr').val() || "int";
         const listaTreinamentos = getListaTreinamentos();
-        
-        const nomeFinal = (nomeInput && nomeInput.trim() !== "") ? nomeInput : "Treinamento de Talento";
 
-        const meta = 60;
-        const diff = "Médio";
-        const infoExtra = `(Dificuldade: Médio)`;
+        if (!featName || featName.trim() === "") {
+            ui.notifications.warn("Digite o nome do talento para treinar!");
+            return;
+        }
+
+        const attrLabel = ATRIBUTOS[attrKey] || "Inteligência";
 
         listaTreinamentos.push({
             categoria: "Talento",
-            nome: nomeFinal,
-            atributoPadrao: "str",
+            nome: `Treinamento de Talento: ${featName.trim()}`,
+            atributoPadrao: attrKey,
             acertosAtuais: 0,
-            totalNecessario: meta,
-            dificuldadeEspecifica: diff,
-            infoExtra: infoExtra,
+            totalNecessario: 100,
+            dificuldadeEspecifica: "Difícil",
+            infoExtra: `(Talento - Difícil - Atributo: ${attrLabel})`,
             usoVantagem: false,
             usoDesvantagem: false,
             bonusSituacional: ""
@@ -268,44 +272,24 @@ export function registerTrainingListeners(html, actor, { salvarScroll, tabParaMa
         await actor.setFlag("professions-reworked-5e", "listaTreinamentos", listaTreinamentos);
     });
 
-    html.find('.start-language-training-btn').click(async (ev) => {
+    $html.find('.start-language-training-btn').off('click.professions').on('click.professions', async (ev) => {
         salvarScroll();
         const container = $(ev.currentTarget).closest('.project-creation-form');
-        const langName = container.find('.new-training-language').val();
+        const langName = container.find('.new-training-language, .new-training-language-name').val();
         const listaTreinamentos = getListaTreinamentos();
 
-        if (!langName) {
-            ui.notifications.warn("Selecione um idioma para aprender!");
+        if (!langName || langName.trim() === "") {
+            ui.notifications.warn("Selecione o idioma para treinar!");
             return;
         }
-
-        const targetScript = LANGUAGES_DATA[langName];
-        let meta = 30;
-        let diff = "Médio";
-        
-        if (targetScript) {
-            const linguasConhecidasSet = new Set(actor.system.traits.languages.value.map(l => l.toLowerCase()));
-            const mapaSistema = { "thieve's cant": "cant", "deep speech": "deep" };
-
-            for (const [nomeLingua, scriptLingua] of Object.entries(LANGUAGES_DATA)) {
-                const chaveSistema = mapaSistema[nomeLingua.toLowerCase()] || nomeLingua.toLowerCase();
-                
-                if (linguasConhecidasSet.has(chaveSistema) && scriptLingua === targetScript) {
-                    meta = 15;
-                    break;
-                }
-            }
-        }
-
-        const infoExtra = `${langName} : Alfabeto ${targetScript || "Nenhum"} - Dificuldade: ${diff}`;
 
         listaTreinamentos.push({
             categoria: "Idioma",
-            nome: `Aprendendo ${langName}`,
+            nome: `Treinamento de Idioma: ${langName.trim()}`,
             acertosAtuais: 0,
-            totalNecessario: meta,
-            dificuldadeEspecifica: diff,
-            infoExtra: infoExtra,
+            totalNecessario: 30,
+            dificuldadeEspecifica: "Médio",
+            infoExtra: "(Idioma - Médio)",
             usoVantagem: false,
             usoDesvantagem: false,
             bonusSituacional: ""
@@ -314,27 +298,37 @@ export function registerTrainingListeners(html, actor, { salvarScroll, tabParaMa
         await actor.setFlag("professions-reworked-5e", "listaTreinamentos", listaTreinamentos);
     });
 
-    html.find('.start-profession-training-btn').click(async (ev) => {
+    $html.find('.start-profession-training-btn').off('click.professions').on('click.professions', async (ev) => {
         salvarScroll();
         const container = $(ev.currentTarget).closest('.project-creation-form');
-        const profName = container.find('.new-training-profession-select').val();
+        const profName = container.find('.new-training-profession-target').val();
         const listaTreinamentos = getListaTreinamentos();
 
         if (!profName) {
-            ui.notifications.warn("Selecione uma profissão!");
+            ui.notifications.warn("Selecione uma profissão para treinar!");
             return;
         }
 
+        const profissoesAtivas = actor.getFlag("professions-reworked-5e", "profissoesAtivas") || [];
+        const isAprendida = profissoesAtivas.includes(profName);
+
         const configProf = PROFISSOES_CONFIG[profName];
         const baseTool = configProf ? configProf.ferramenta : "";
-        
         const toolItem = actor.items.find(i => i.type === "tool" && i.system.type.baseItem === baseTool);
-        const multiplier = toolItem?.system?.prof?.multiplier || 0;
+        const isToolProf = (toolItem && toolItem.system.prof?.multiplier >= 1);
 
-        const meta = (multiplier >= 1) ? 50 : 20;
-        const estadoTexto2 = (multiplier >= 1) ? "Aprimorando" : "Aprendendo";
-        const estadoTexto1 = (multiplier >= 1) ? "Proficiente" : "Não Proficiente";
-        
+        let meta = 10;
+        let estadoTexto1 = isAprendida ? "Profissão Conhecida" : "Não Conhece Profissão";
+        let estadoTexto2 = isToolProf ? "Possui Proficiência na Ferramenta" : "Sem Proficiência na Ferramenta";
+
+        if (!isAprendida && !isToolProf) {
+            meta = 40;
+        } else if ((isAprendida && !isToolProf) || (!isAprendida && isToolProf)) {
+            meta = 20;
+        } else if (isAprendida && isToolProf) {
+            meta = 10;
+        }
+
         listaTreinamentos.push({
             categoria: "Profissão",
             profissaoAlvo: profName,
@@ -352,7 +346,7 @@ export function registerTrainingListeners(html, actor, { salvarScroll, tabParaMa
         await actor.setFlag("professions-reworked-5e", "listaTreinamentos", listaTreinamentos);
     });
 
-    html.find('.delete-training-card').click(async (ev) => {
+    $html.find('.delete-training-card').off('click.professions').on('click.professions', async (ev) => {
         salvarScroll();
         const card = ev.currentTarget.closest('.project-card');
         const index = parseInt(card.dataset.index);
@@ -370,7 +364,7 @@ export function registerTrainingListeners(html, actor, { salvarScroll, tabParaMa
         }
     });
 
-    html.find('.edit-training-name').click(async (ev) => {
+    $html.find('.edit-training-name').off('click.professions').on('click.professions', async (ev) => {
         ev.stopPropagation();
         salvarScroll();
         const card = ev.currentTarget.closest('.project-card');
@@ -404,7 +398,7 @@ export function registerTrainingListeners(html, actor, { salvarScroll, tabParaMa
         }
     });
 
-    html.find('.train-attribute-select').change(async (ev) => {
+    $html.find('.train-attribute-select').off('change.professions').on('change.professions', async (ev) => {
         salvarScroll();
         const card = ev.currentTarget.closest('.project-card');
         const index = parseInt(card.dataset.index);
@@ -415,7 +409,7 @@ export function registerTrainingListeners(html, actor, { salvarScroll, tabParaMa
         }
     });
 
-    html.find('.train-adv-checkbox').change(async (ev) => {
+    $html.find('.train-adv-checkbox').off('change.professions').on('change.professions', async (ev) => {
         salvarScroll();
         const card = ev.currentTarget.closest('.project-card');
         const index = parseInt(card.dataset.index);
@@ -426,7 +420,7 @@ export function registerTrainingListeners(html, actor, { salvarScroll, tabParaMa
         }
     });
 
-    html.find('.train-disadv-checkbox').change(async (ev) => {
+    $html.find('.train-disadv-checkbox').off('change.professions').on('change.professions', async (ev) => {
         salvarScroll();
         const card = ev.currentTarget.closest('.project-card');
         const index = parseInt(card.dataset.index);
@@ -437,7 +431,7 @@ export function registerTrainingListeners(html, actor, { salvarScroll, tabParaMa
         }
     });
 
-    html.find('.train-bonus').change(async (ev) => {
+    $html.find('.train-bonus').off('change.professions').on('change.professions', async (ev) => {
         salvarScroll();
         const card = ev.currentTarget.closest('.project-card');
         const index = parseInt(card.dataset.index);
@@ -448,7 +442,7 @@ export function registerTrainingListeners(html, actor, { salvarScroll, tabParaMa
         }
     });
 
-    html.find('.roll-training-test').click(async (ev) => {
+    $html.find('.roll-training-test').off('click.professions').on('click.professions', async (ev) => {
         salvarScroll();
         const card = ev.currentTarget.closest('.project-card');
         const index = parseInt(card.dataset.index);

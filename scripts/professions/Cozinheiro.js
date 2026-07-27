@@ -1,5 +1,5 @@
 import { calcularResultado } from '../logic.js';
-import { COZINHEIRO_CONFIG, RESULTADO_FORMAT, ATRIBUTOS, XP_COZINHEIRO } from '../constants.js';
+import { COZINHEIRO_CONFIG, RESULTADO_FORMAT, ATRIBUTOS, XP_COZINHEIRO, DIFICULDADES_VALOR } from '../constants.js';
 import { RECOMPENSAS } from '../items_data.js';
 import { abrirDialogoRecompensa } from '../main.js';
 
@@ -36,41 +36,42 @@ export const Cozinheiro = {
     },
 
     registerListeners(html, actor, { salvarScroll, tabParaManter, app }) {
+        const $html = $(html);
         const getRefeicoesProntas = () => actor.getFlag("professions-reworked-5e", "refeicoesProntas") || [];
         const getCookParams = () => {
             const defaults = { atributoPadrao: "wis", usoVantagem: false, usoDesvantagem: false, bonusSituacional: "" };
             return foundry.utils.mergeObject(defaults, actor.getFlag("professions-reworked-5e", "cookParams") || {});
         };
 
-        html.find('.cook-attribute').change(async (ev) => {
+        $html.find('.cook-attribute').off('change.professions').on('change.professions', async (ev) => {
             salvarScroll();
             const cookParams = getCookParams();
             cookParams.atributoPadrao = ev.currentTarget.value;
             await actor.setFlag("professions-reworked-5e", "cookParams", cookParams);
         });
 
-        html.find('.cook-adv-checkbox').change(async (ev) => {
+        $html.find('.cook-adv-checkbox').off('change.professions').on('change.professions', async (ev) => {
             salvarScroll();
             const cookParams = getCookParams();
             cookParams.usoVantagem = ev.currentTarget.checked;
             await actor.setFlag("professions-reworked-5e", "cookParams", cookParams);
         });
 
-        html.find('.cook-disadv-checkbox').change(async (ev) => {
+        $html.find('.cook-disadv-checkbox').off('change.professions').on('change.professions', async (ev) => {
             salvarScroll();
             const cookParams = getCookParams();
             cookParams.usoDesvantagem = ev.currentTarget.checked;
             await actor.setFlag("professions-reworked-5e", "cookParams", cookParams);
         });
 
-        html.find('.cook-bonus').change(async (ev) => {
+        $html.find('.cook-bonus').off('change.professions').on('change.professions', async (ev) => {
             salvarScroll();
             const cookParams = getCookParams();
             cookParams.bonusSituacional = ev.currentTarget.value;
             await actor.setFlag("professions-reworked-5e", "cookParams", cookParams);
         });
 
-        html.find('.delete-meal').click(async (ev) => {
+        $html.find('.delete-meal').off('click.professions').on('click.professions', async (ev) => {
             salvarScroll();
             const card = ev.currentTarget.closest('.meal-card');
             const index = parseInt(card.dataset.index);
@@ -81,98 +82,135 @@ export const Cozinheiro = {
             }
         });
 
-        html.find('.cook-test').click(async (ev) => {
+        $html.find('.cook-test').off('click.professions').on('click.professions', async (ev) => {
             salvarScroll();
             const tipo = ev.currentTarget.dataset.type;
             const cookParams = getCookParams();
             const refeicoesProntas = getRefeicoesProntas();
             const ferramentasEquipadas = actor.getFlag("professions-reworked-5e", "ferramentasEquipadas") || {};
+            const toolItemId = ferramentasEquipadas["Cozinheiro"];
+            const toolItem = actor.items.get(toolItemId);
 
-            const attributeKey = cookParams.atributoPadrao || "wis";
-            const hasAdvantage = cookParams.usoVantagem || false;
-            const hasDisadvantage = cookParams.usoDesvantagem || false;
-            const situationalBonus = cookParams.bonusSituacional || "";
-
-            const toolId = ferramentasEquipadas["Cozinheiro"] || "";
-            const hasTool = toolId !== "";
-            const attrMod = actor.system.abilities[attributeKey].mod;
-            const attrLabel = ATRIBUTOS[attributeKey];
-
-            let profBonus = 0;
-            let toolLabel = "Sem Ferramenta";
-
-            if (hasTool) {
-                const toolItem = actor.items.get(toolId);
-                if (toolItem) {
-                    toolLabel = toolItem.name;
-                    const profMultiplier = toolItem.system.prof?.multiplier || 0;
-                    profBonus = Math.floor(actor.system.attributes.prof * profMultiplier);
-                }
+            if (!toolItem || toolItem.type !== "tool" || toolItem.system.type.baseItem !== "cook") {
+                ui.notifications.warn("Selecione Utensílios de Cozinheiro válidos e equipados no painel!");
+                return;
             }
+
+            const attrKey = cookParams.atributoPadrao || "wis";
+            const attrMod = actor.system.abilities[attrKey].mod;
+            const attrLabel = ATRIBUTOS[attrKey];
+            const toolProf = toolItem.system.prof?.hasProficiency ? (toolItem.system.prof.flat || (actor.system.attributes.prof * (toolItem.system.prof.multiplier || 1))) : 0;
+            const toolName = toolItem.name;
+
+            const hasAdv = cookParams.usoVantagem || false;
+            const hasDis = cookParams.usoDesvantagem || false;
+            const bonusSit = cookParams.bonusSituacional || "";
 
             let diceFormula = "1d20";
-            if (hasTool && hasAdvantage && !hasDisadvantage) {
-                diceFormula = "2d20kh1";
-            } else if (!hasAdvantage && (hasDisadvantage || !hasTool)) {
-                diceFormula = "2d20kl1";
-            }
+            if (hasAdv && !hasDis) diceFormula = "2d20kh1";
+            else if (!hasAdv && hasDis) diceFormula = "2d20kl1";
 
-            let formula = `${diceFormula} + ${attrMod}[${attrLabel}]`;
-            if (profBonus > 0) formula += ` + ${profBonus}[Prof]`;
-            if (situationalBonus) formula += ` + ${situationalBonus}[Sit]`;
+            let formula = `${diceFormula} + ${attrMod}[${attrLabel}] + ${toolProf}[${toolName}]`;
+            if (bonusSit) formula += ` + ${bonusSit}[Sit]`;
 
             try {
                 const r = new Roll(formula, actor.getRollData());
                 await r.evaluate();
-                const resCozinha = processarCozinheiro(r.total, tipo);
-                let resultadoTexto = resCozinha.efeitoFinal;
 
-                if (tipo === "BANQUETE" && resultadoTexto !== "0") {
-                    if (resultadoTexto.includes("d")) {
+                const configPreparo = COZINHEIRO_CONFIG[tipo];
+                const diffAlvo = configPreparo ? configPreparo.dificuldade : "Médio";
+                const res = calcularResultado(r.total, diffAlvo);
+                const cfg = RESULTADO_FORMAT[res.resultado] || { label: res.resultado, color: "black", bg: "#eee", border: "#ccc" };
+
+                if (tipo === "BANQUETE") {
+                    const formulaPV = configPreparo?.resultados[res.resultado] || "0";
+                    let tempHP = 0;
+
+                    if (formulaPV !== "0") {
                         try {
-                            const level = actor.system.details?.cr || actor.system.details?.level || 1;
-                            const rollPV = new Roll(resultadoTexto, { level: level });
+                            const level = actor.system.details?.level || actor.system.details?.cr || 1;
+                            const rollPV = new Roll(formulaPV, { level: level });
                             await rollPV.evaluate();
-                            resultadoTexto = `<strong>${rollPV.total} PV Temporários!</strong>`;
-                        } catch (innerErr) {
-                            console.error("Erro interno no Banquete:", innerErr);
-                            resultadoTexto += " (Erro calc.)";
+                            tempHP = rollPV.total;
+                        } catch (errPV) {
+                            console.error("Erro ao rolar PV do Banquete:", errPV);
+                            tempHP = Math.floor(r.total / 2);
                         }
                     }
+
+                    const refeicaoObj = {
+                        nome: "Banquete",
+                        resultado: `${tempHP} PV Temporários`,
+                        tempHP: tempHP,
+                        timestamp: Date.now(),
+                        xpColetado: false
+                    };
+
+                    refeicoesProntas.push(refeicaoObj);
+
+                    const contentHTML = `
+                        <div style="border: 2px solid ${cfg.border}; background-color: ${cfg.bg}; padding: 8px; text-align: center; color: black; border-radius: 5px; font-family: 'Signika', sans-serif;">
+                            <h3 style="color: ${cfg.color}; border-bottom: 1px solid ${cfg.border}; margin: 0 0 5px 0; font-weight: bold;">
+                                Banquete &mdash; ${cfg.label}
+                            </h3>
+                            <div style="font-size: 12px; margin-bottom: 5px; color: #444;">
+                                <strong>Preparo de Banquete</strong> (Dificuldade: ${diffAlvo})
+                            </div>
+                            <div style="font-size: 14px; font-weight: bold; color: ${cfg.color}; margin-top: 5px;">
+                                Total: ${r.total} &mdash; ${cfg.label} <span style="font-size: 12px; color: #555;">(${tempHP} PV Temporários)</span>
+                            </div>
+                        </div>
+                    `;
+
+                    await actor.setFlag("professions-reworked-5e", "refeicoesProntas", refeicoesProntas);
+
+                    r.toMessage({
+                        speaker: ChatMessage.getSpeaker({ actor }),
+                        flavor: contentHTML
+                    });
+
+                } else {
+                    const baseNome = (configPreparo?.resultados[res.resultado]) || "Poor";
+                    const qualidade = `${baseNome} meal`;
+
+                    const refeicaoObj = {
+                        nome: (tipo === "BAIXA_QUALIDADE") ? "Refeição de Baixa Qualidade" : "Refeição de Alta Qualidade",
+                        resultado: qualidade,
+                        resultadoRolagem: cfg.label,
+                        timestamp: Date.now(),
+                        xpColetado: false
+                    };
+
+                    refeicoesProntas.push(refeicaoObj);
+
+                    const contentHTML = `
+                        <div style="border: 2px solid ${cfg.border}; background-color: ${cfg.bg}; padding: 8px; text-align: center; color: black; border-radius: 5px; font-family: 'Signika', sans-serif;">
+                            <h3 style="color: ${cfg.color}; border-bottom: 1px solid ${cfg.border}; margin: 0 0 5px 0; font-weight: bold;">
+                                ${(tipo === "BAIXA_QUALIDADE") ? "Refeição de Baixa Qualidade" : "Refeição de Alta Qualidade"} &mdash; ${cfg.label}
+                            </h3>
+                            <div style="font-size: 12px; margin-bottom: 5px; color: #444;">
+                                <strong>Resultado do Teste:</strong> ${cfg.label} (Dificuldade: ${diffAlvo})
+                            </div>
+                            <div style="font-size: 14px; font-weight: bold; color: ${cfg.color}; margin-top: 5px;">
+                                Refeição Preparada: <span>${qualidade}</span>
+                            </div>
+                        </div>
+                    `;
+
+                    await actor.setFlag("professions-reworked-5e", "refeicoesProntas", refeicoesProntas);
+
+                    r.toMessage({
+                        speaker: ChatMessage.getSpeaker({ actor }),
+                        flavor: contentHTML
+                    });
                 }
-
-                const cfg = RESULTADO_FORMAT[resCozinha.resultadoMatematico] || { label: resCozinha.resultadoMatematico, color: "black", bg: "#eee", border: "#ccc" };
-                const tipoLegivel = tipo.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
-
-                const contentHTML = `
-                    <div style="border: 2px solid ${cfg.border}; background-color: ${cfg.bg}; padding: 8px; text-align: center; color: black; border-radius: 5px; font-family: 'Signika', sans-serif;">
-                        <h3 style="color: ${cfg.color}; border-bottom: 1px solid ${cfg.border}; margin: 0 0 5px 0; font-weight: bold;">
-                            ${cfg.label}
-                        </h3>
-                        <div style="font-size: 13px; margin-bottom: 5px;">
-                            <strong>Cozinhando:</strong> ${tipoLegivel}<br>
-                            <strong>Ferramenta:</strong> ${toolLabel}
-                        </div>
-                        <div style="font-size: 14px; font-weight: bold; color: #333;">
-                            Resultado: <span style="color: ${cfg.color};">${resultadoTexto}</span>
-                        </div>
-                    </div>
-                `;
-
-                refeicoesProntas.push({ nome: tipoLegivel, resultado: resultadoTexto, timestamp: Date.now() });
-                await actor.setFlag("professions-reworked-5e", "refeicoesProntas", refeicoesProntas);
-
-                r.toMessage({
-                    speaker: ChatMessage.getSpeaker({ actor }),
-                    flavor: contentHTML
-                });
 
             } catch (err) {
                 ui.notifications.error("Erro na rolagem de cozinha: " + err.message);
             }
         });
 
-        html.find('.xp-meal-btn').click(async (ev) => {
+        $html.find('.xp-meal-btn').off('click.professions').on('click.professions', async (ev) => {
             ev.stopPropagation();
             salvarScroll();
             const card = ev.currentTarget.closest('.meal-card');
@@ -200,9 +238,7 @@ export const Cozinheiro = {
             if (refeicao.nome === "Banquete") {
                 qualidadeChave = "Banquete";
             } else {
-                const tempDiv = document.createElement("div");
-                tempDiv.innerHTML = refeicao.resultado;
-                qualidadeChave = tempDiv.textContent.trim();
+                qualidadeChave = (refeicao.resultado || "").replace(" meal", "").trim();
             }
 
             const xpAmount = XP_COZINHEIRO[isProf][qualidadeChave] || 0;
@@ -212,12 +248,7 @@ export const Cozinheiro = {
 
             refeicao.xpColetado = true;
 
-            let textoRefeicaoDisplay = "";
-            if (refeicao.nome === "Banquete") {
-                textoRefeicaoDisplay = refeicao.nome;
-            } else {
-                textoRefeicaoDisplay = `${refeicao.nome} (${qualidadeChave})`;
-            }
+            let textoRefeicaoDisplay = `${refeicao.nome} (${refeicao.resultado})`;
 
             const contentHTML = `
                 <div style="border: 2px solid #b8860b; background-color: #fff8e1; padding: 8px; border-radius: 5px; font-family: 'Signika', sans-serif; color: black;">
@@ -245,7 +276,7 @@ export const Cozinheiro = {
             });
         });
 
-        html.find('.get-meal-reward-btn').click(async (ev) => {
+        $html.find('.get-meal-reward-btn').off('click.professions').on('click.professions', async (ev) => {
             ev.stopPropagation();
             salvarScroll();
             const card = ev.currentTarget.closest('.meal-card');
@@ -255,19 +286,27 @@ export const Cozinheiro = {
 
             if (!refeicao) return;
 
-            let itemKey = refeicao.resultado;
+            let itemKey = refeicao.resultado || "";
             if (refeicao.nome === "Banquete") {
                 itemKey = "Banquete";
+            } else {
+                itemKey = itemKey.replace(" meal", "").trim();
             }
 
-
-
             const categoriaItem = RECOMPENSAS["Cozinheiro"];
-            const configItem = categoriaItem ? categoriaItem[itemKey] : null;
+            let configItem = categoriaItem ? categoriaItem[itemKey] : null;
 
             if (!configItem) {
                 ui.notifications.warn(`Recompensa para "${itemKey}" não configurada no repositório de Cozinheiro.`);
                 return;
+            }
+
+            // Clona o configItem para não alterar a constante global
+            configItem = foundry.utils.deepClone(configItem);
+
+            if (itemKey === "Banquete" && configItem.system?.description?.value) {
+                const hpVal = (typeof refeicao.tempHP === "number") ? refeicao.tempHP : 0;
+                configItem.system.description.value = configItem.system.description.value.replace("[value]", hpVal);
             }
 
             await abrirDialogoRecompensa(actor, {

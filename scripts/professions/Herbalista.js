@@ -117,8 +117,8 @@ export const Herbalista = {
     },
 
     registerListeners(html, actor, { salvarScroll }) {
-        // Mudança de raridade para Herbalista reconstrói o formulário
-        html.find('.new-project-rarity').change(ev => {
+        const $html = $(html);
+        $html.find('.new-project-rarity').change(ev => {
             const container = $(ev.currentTarget).closest('.project-creation-form');
             const profSection = container.closest('.profession-section');
             if (profSection.data('prof') === "Herbalista") {
